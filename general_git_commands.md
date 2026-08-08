@@ -7,7 +7,7 @@ step 4- Perform your operations by creating folders/files
 step 5- Once you started performing you will see your folder/file is marked as untracked with U notation
 step 6- Simply run: git add .  then run: git commit -m "Write a meaningful message in simple present tense"
 step 7- After commit changes are saved in branch master
-step 8- change master to main. run: git branch -m main
+step 8- Rename master to main. run: git branch -m main
 step 9- Create a repository on github and copy the url
 step 10- run: git remote add origin "paste the url"
 step 11- check the origin. run: git remote -v
