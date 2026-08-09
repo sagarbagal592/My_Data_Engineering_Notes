@@ -1,0 +1,22 @@
+df = spark.readStream.format('csv)
+                    .option('header',True)
+                    .schema(new_schema)
+                    .load('path')
+
+df.writeStream.format('delta)
+               .outputMode('append')
+               .option('checkpoinlocation','path for checkpoint')
+               trigger(availableNow=True)
+               .toTable('path of delta table volume')
+
+entities = ['customer','driver','trips','location','payments']
+
+for entity in entities:
+    df_batch = spark.read.format('csv')
+                   .option('header',True)
+                   .option('inferSchema',True)
+                   .load(f'volume/pysparkdbt/source/source_data/{customer}')
+
+    schema_entity = df_batch.schema
+
+    
