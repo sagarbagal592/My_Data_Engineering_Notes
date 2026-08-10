@@ -19,4 +19,27 @@ for entity in entities:
 
     schema_entity = df_batch.schema
 
-    
+
+
+
+class Transformations:
+    def deduplication(self,df:DataFrame,dedup_cols:List,cdc:str):
+        df = df.withColumn('dedup_col',concat(*dedup_cols))
+        df = df.withColumn('dedup_count',row_number().over(Window.partitionBy(col('dedup_col')).orderBy(col(cdc).desc())))
+        df = df.filter(col('dedup_count')==1).drop(col('dedup_col'),col('dedup_count'))
+
+
+
+Silver
+
+df_customer_transformation.write.format('delta').mode('append').saveAsTable('pyspark_dbt.silver.customer')
+
+dlt_object = DeltaTable.forName(spark,'pysparkdbt.silver.customer')
+
+# I need to merge my source (df_customer_transformstion) with target(dlt_object)
+
+merge_condition = "AND" .join([f"dlt_object{i} == df_customer_transformation{i}" for i in key_columns])
+
+merge_condition = dlt_object.column == df_customer_transformation
+
+dlt_object.merge(df_customer,merge_condition).whenMatchedUpdatAll().whenNotMatchedInsertAll().execute()
