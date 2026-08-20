@@ -155,25 +155,25 @@ loaded_at_field: created_at
     #### dbt tests:
 
     1. not_null
-        Checks that a column doesn't contain NULL values.
+       - Checks that a column doesn't contain NULL values.
 
-            - name: customer_id
-            data_tests:
-                - not_null
+                - name: customer_id
+                data_tests:
+                    - not_null
 
-            Conceptually, dbt checks:
+                Conceptually, dbt checks:
 
-            SELECT *
-            FROM raw.customers
-            WHERE customer_id IS NULL
+                SELECT *
+                FROM raw.customers
+                WHERE customer_id IS NULL
 
-            If rows are returned:
+                If rows are returned:
 
-            TEST FAILED ❌
+                TEST FAILED ❌
 
-            If no rows are returned:
+                If no rows are returned:
 
-            TEST PASSED ✓
+                TEST PASSED ✓
 
     2. unique
 
@@ -378,12 +378,50 @@ sources:
 
 ## 3. Model
 
-A **model = one `.sql` file** in your `models/` directory containing a `SELECT` query.
+- A **model = one `.sql` file** in your `models/` directory containing a `SELECT` query.
 
-No `CREATE TABLE`, no DDL — dbt generates that for you based on configuration.
+- No `CREATE TABLE`, no DDL — dbt generates that for you based on configuration.
 
-The filename becomes the object name in the warehouse.
+- The filename becomes the object name in the warehouse.
+- A dbt model is a SQL-based transformation represented by a .sql file in a dbt project. When dbt runs the model, it compiles the SQL and Jinja, resolves dependencies such as ref() and source(), and materializes the result in the target warehouse as a view, table, incremental model, or ephemeral transformation. Models can also have tests, documentation, contracts, and lineage.
+- A source represents data that already exists outside dbt, while a model represents a transformation managed by dbt. We reference sources using source() and other dbt models using ref().
+- The important part is that dbt doesn't just execute the SQL. It also manages things like:
 
+        dependencies
+        materialization
+        testing
+        documentation
+        lineage
+        compilation
+        deployment
+- What happens when you run `dbt run`
+
+        SQL file
+        ↓
+        Parse
+        ↓
+        Compile Jinja
+        ↓
+        Resolve dependencies
+        ↓
+        Apply materialization
+        ↓
+        Execute SQL in warehouse
+        ↓
+        Create/update database object
+- Model is not necessarily a table
+
+            dbt model
+        │
+        ├── materialized as VIEW
+        │
+        ├── materialized as TABLE
+        │
+        ├── materialized as INCREMENTAL
+        │
+        └── materialized as EPHEMERAL
+- model = sql transformation defination
+- materialization = how the result of that model is represented/stored
 For example:
 
 ```text
@@ -397,8 +435,32 @@ stg_orders
 ```
 
 ---
+## 4. ref()
 
-## 4. Materializations
+- ref() is a dbt Jinja function used to reference another dbt model. It resolves the model to the appropriate database relation and, importantly, tells dbt that the current model depends on that upstream model. dbt uses these dependencies to build the DAG, determine execution order, generate lineage, and support environment-specific relation resolution.
+- source() is used to reference tables that exist outside dbt and have been declared as sources, while ref() is used to reference models created and managed by dbt. source() represents the entry point into the dbt transformation layer, while ref() establishes dependencies between dbt models.
+- example
+
+        SELECT *
+        FROM {{ ref('stg_customers') }}
+
+        This means: Use the output of the stg_customers dbt model as the input to this model.
+- ref() create dependency
+- ref() does two major things:
+
+                        ref()
+                        │
+                ┌─────────┴─────────┐
+                ▼                   ▼
+        Resolve the relation    Create dependency
+                │                   │
+                ▼                   ▼
+        Actual warehouse       DAG / lineage /
+        object                   execution order
+
+---
+
+## 5. Materializations
 
 ### What is a materialization?
 
@@ -416,7 +478,7 @@ The four core materializations are:
 
 ---
 
-### 4.1 `view`
+### 5.1 `view`
 
 With:
 
@@ -444,7 +506,7 @@ It means the query is stored, but the resulting rows are generally not physicall
 
 ---
 
-### 4.2 `table`
+### 5.2 `table`
 
 With:
 
@@ -468,7 +530,7 @@ Tables are useful when your transformation is:
 
 ---
 
-### 4.3 `incremental`
+### 5.3 `incremental`
 
 Suppose you have an orders table with **1 billion rows**, and every day **5 million new rows** are added.
 
@@ -537,13 +599,13 @@ Common incremental strategies include:
 
 ---
 
-### 4.4 `ephemeral`
+### 5.4 `ephemeral`
 
 The original notes introduce `ephemeral` as the fourth core materialization but do not provide additional explanation or an example for it.
 
 ---
 
-## 5. Materialization Comparison
+## Materialization Comparison
 
 ### `VIEW`
 
@@ -587,8 +649,10 @@ EPHEMERAL
 
 ---
 
-## 6. Interview Question
 
 ### Q: You have a 2-billion-row fact table and every day only 10 million new records arrive. Which materialization would you choose?
 
 **Answer:** I would consider an incremental materialization because rebuilding the entire 2-billion-row table every day would be expensive. With an incremental model, I can process only the new or changed records and merge them into the existing target table. I would also choose an appropriate incremental strategy and unique key based on whether the source contains inserts only or also updates.
+
+---
+
