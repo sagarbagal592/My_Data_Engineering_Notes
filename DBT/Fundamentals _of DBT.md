@@ -4,7 +4,7 @@
 
 - dbt generally doesn't replace your data warehouse. It manages the SQL transformation layer that runs against your warehouse/lakehouse.
 - dbt is a **Transformation Tool** that allows data engineers and analytics engineers to transform data inside a data warehouse/lakehouse using SQL, while providing features such as dependency management, testing, documentation, lineage, and reusable code.
-
+- The key philosophical shift dbt brought: "T" happens inside the warehouse, in SQL, as software — with git, code review, CI/CD, and modularity — instead of in a black-box ETL tool.
 ### dbt is not primarily ETL
 
 dbt doesn't primarily mean:
@@ -597,6 +597,68 @@ Common incremental strategies include:
 - `delete + insert`
 - `insert_overwrite`
 
+### dbt feature: on_schema_change
+
+- dbt provides
+
+        {{ config(
+            materialized='incremental',
+            unique_key='order_id',
+            incremental_strategy='merge',
+            on_schema_change='.....'
+        ) }}
+- You can configure how dbt handles changes to the columns in your source/model
+- There are four common options
+    - 1. ignore
+    - 2. fail
+    - 3. append_new_columns
+    - 4. sync_all_columns
+1. ignore
+
+        {{ config(
+            materialized='incremental',
+            on_schema_change='ignore'
+        ) }}
+        This essentially says: Don't modify the existing target schema when the model's columns change.
+
+2. fail
+
+        {{ config(
+            materialized='incremental',
+            on_schema_change='fail'
+        ) }}
+        This says: If the schema changes, stop the dbt run and tell me.
+
+3. append_new_columns
+
+        {{ config(
+            materialized='incremental',
+            on_schema_change='append_new_columns'
+        ) }}
+        Now dbt can add the new column to the existing target table.
+
+4. sync_all_columns
+- This goes further and synchronizes the target schema with the model schema, including adding/removing columns depending on the adapter's capabilities.
+
+### dbt run -- full-refresh
+
+- A normal dbt run doesn't rebuild the entire incremental target. The behavior of the new column depends on the on_schema_change configuration. With append_new_columns, dbt can add the new column to the target, but existing historical rows won't necessarily be backfilled. If I need the new column populated for all historical records, I would run dbt run --full-refresh, which rebuilds the incremental model from the entire source.
+
+                  dbt run
+                     |
+             What materialization?
+                     |
+          ┌──────────┴──────────┐
+          ↓                     ↓
+      table/view            incremental
+                                |
+                     ┌──────────┴─────────┐
+                     ↓                    ↓
+               normal run            --full-refresh
+                     ↓                    ↓
+              incremental            rebuild
+                update               everything
+
 ---
 
 ### 5.4 `ephemeral`
@@ -646,6 +708,12 @@ EPHEMERAL
  ├── SQL gets incorporated into downstream models
  └── Good for small reusable intermediate logic
 ```
+### Configuring materialization
+
+- Config precedence (highest wins): in-model config block > dbt_project.yml > default (view).
+
+### The Golden Rule of Materializations:
+- Start with models as views. When they take too long to query, make them tables. When the tables take too long to build, make them incremental.
 
 ---
 
@@ -656,3 +724,33 @@ EPHEMERAL
 
 ---
 
+### Common Misconceptions & Mistakes
+
+- "Incremental = always faster." Not necessarily — the initial build is still a full table scan (as slow as table), and incremental models add complexity (late-arriving data, backfills, schema drift) that a plain table doesn't have. Don't reach for incremental prematurely — follow the Golden Rule.
+- Hardcoding schema names instead of ref()/source() — breaks the DAG, breaks environment portability (dev vs prod), and dbt can no longer determine build order or lineage.
+- Forgetting unique_key on a merge-strategy incremental model — without it, dbt can't tell what to update vs. insert, and you can silently get duplicate rows.
+- Thinking ephemeral models are "free" performance-wise — they're inlined as CTEs into every downstream model that references them, so if 10 models ref() the same ephemeral model, that CTE logic gets recompiled and re-executed 10 times. Overusing ephemeral models on expensive logic can hurt performance.
+- Not understanding is_incremental() runs False on first run — people are sometimes confused why a fresh dbt run on an incremental model builds the entire table rather than "nothing" (since there's nothing to compare against yet).
+- Confusing materialized_view (warehouse-native, DB-managed refresh) with dbt's incremental (dbt-orchestrated batch refresh) — these solve a similar problem differently and interviewers like probing which one you'd pick and why
+
+-------
+ 
+### How This Is Tested in Interviews
+
+- "Walk me through what materialization you'd choose for X scenario" (staging layer, a slowly changing dimension, a 2B-row events table) — they're testing the Golden Rule reasoning, not memorization.
+- "What happens on the first run of an incremental model?" / "How does is_incremental() work under the hood?"
+- "Your incremental model has duplicate rows in production — how do you debug it?" (answer usually touches on missing/wrong unique_key, late-arriving data past your filter window, or append strategy misuse)
+- Scenario: "A colleague hardcoded a table name instead of using ref() — what breaks?" (DAG ordering, dbt docs lineage graph, environment promotion via dbt build --target prod)
+- "Compare table vs incremental vs materialized_view — when would you use each?"
+
+---
+
+### Revision Summary
+- A model = a .sql SELECT file; dbt handles the DDL.
+- ref() links dbt models together and builds the DAG; source() points to raw, un-transformed tables.
+- 5 materializations: view (default, no storage), table (full rebuild), incremental (only new/changed rows), ephemeral (inlined CTE, not built), materialized_view (warehouse-managed refresh).
+- Golden Rule: view → table → incremental, escalate only when performance demands it.
+- Incremental models rely on is_incremental(), {{ this }}, unique_key, and an incremental_strategy (merge/append/delete+insert/insert_overwrite).
+- --full-refresh rebuilds an incremental model from scratch.
+
+---
