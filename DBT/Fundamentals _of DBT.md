@@ -80,20 +80,299 @@ So, `source()` is not just a shortcut for writing a table name. It makes the rel
 
 ### `source()` vs `ref()`
 
-- **`source()`** is used when referring to a table that is external to dbt's model.
-- **`ref()`** is used when referring to another dbt model.
+- **`source()`** is used when referring to a table that is external to dbt's model. (I am getting data from outside my dbt model)
+- **`ref()`** is used when referring to another dbt model.(I am getting data from another dbt model)
 
 ### Source freshness
 
-Source freshness.
+- Source freshness is very important concept because its let you answer: Is my upstream/source data arriving on time? or is it stale?
+
+- It is diiferent from dbt testing whether the data is correct. Freshness is about when the data was last updated/loaded.
+- We configure data freshness in source yml file.
+
+```yaml
+version: 2
+
+sources:
+  - name: source
+    database: dbt_masterclass
+    schema: source
+
+    config:
+      freshness:
+        warn_after:
+          count: 2
+          period: hour
+
+        error_after:
+          count: 4
+          period: hour
+
+    tables:
+      - name: dim_customers
+        config:
+          loaded_at_field: created_at # It is must we have column named 'created at'
+        
+```
+#### loaded_at_field:
+
+```
+loaded_at_field: created_at
+```
+ - It tells dbt: 'use this timestamp column to determine when the source data was loaded'
+
+        Suppose:
+
+        dim_customers
+
+        contains:
+
+        customer_id | name  | created_at
+        ------------|-------|-------------------
+        101         | John  | 2026-08-19 15:00
+        102         | Alice | 2026-08-19 15:00
+        103         | Bob   | 2026-08-19 15:00
+
+        dbt can look at:
+
+        MAX(created_at)
+
+        to determine the latest load timestamp.
+
 
 ### Source testing
 
-Source testing.
+- Source testing is not a completely separate testing framework from dbt testing. Source tests are dbt data tests that are attached to source tables rather than dbt models.
+
+                    dbt data tests
+                         │
+             ┌───────────┴───────────┐
+             │                       │
+             ▼                       ▼
+        Source tests            Model tests
+             │                       │
+        Test raw data           Test transformed data
+    #### dbt tests:
+
+    1. not_null
+        Checks that a column doesn't contain NULL values.
+
+            - name: customer_id
+            data_tests:
+                - not_null
+
+            Conceptually, dbt checks:
+
+            SELECT *
+            FROM raw.customers
+            WHERE customer_id IS NULL
+
+            If rows are returned:
+
+            TEST FAILED ❌
+
+            If no rows are returned:
+
+            TEST PASSED ✓
+
+    2. unique
+
+        - Checks whether values are unique.
+    3. accepted values
+
+        This checks whether a column contains only allowed values.
+
+        For example:
+
+            - name: status
+            data_tests:
+                - accepted_values:
+                    arguments:
+                    values: ['active', 'inactive']
+
+            Suppose:
+
+            status
+            ------
+            active
+            active
+            inactive
+            active
+
+            Passes.
+
+            But:
+
+            status
+            ------
+            active
+            inactive
+            deleted
+
+            fails because:
+
+            deleted
+
+            isn't an accepted value.
+
+    4. relationships
+
+    - This is particularly useful for source testing.
+
+            Suppose you have:
+
+            raw.orders
+
+            and:
+
+            raw.customers
+
+            Your orders table contains:
+
+            order_id | customer_id
+            ---------|------------
+            1        | 101
+            2        | 102
+            3        | 103
+
+            And customers contains:
+
+            customer_id
+            -----------
+            101
+            102
+            103
+
+            You expect every orders.customer_id to exist in customers.customer_id.
+
+            You can test this using:
+
+            - name: customer_id
+            data_tests:
+                - relationships:
+                    arguments:
+                    to: source('raw', 'customers')
+                    field: customer_id
+
+            Conceptually:
+
+            orders.customer_id
+                │
+                ▼
+            Does this customer exist?
+                │
+                ▼
+            customers.customer_id
+
+            If an order contains:
+
+            customer_id = 999
+
+            but customer 999 doesn't exist:
+
+            TEST FAILED ❌
+    - Example:
+```yml
+version: 2
+
+sources:
+  - name: source
+  database: dbt_masterclass
+    schema: source
+
+    tables:
+
+      - name: dim_customers
+
+        config:
+          freshness:
+            warn_after:
+              count: 2
+              period: hour
+
+            error_after:
+              count: 4
+              period: hour
+
+        columns:
+
+          - name: customer_id
+            data_tests:
+              - not_null
+              - unique
+
+          - name: status
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values:
+                      - active
+                      - inactive
+```
 
 ### Source documentation
 
-Source documentation.
+- Source documentation in dbt is the process of adding descriptions and metadata to your source data so that other data engineers, analysts, and stakeholders can understand what the source represents, what its tables mean, and what individual columns contain.
+- complete example
+
+        version: 2
+
+        sources:
+
+        - name: raw
+
+            description: "Raw data ingested from operational systems."
+
+            schema: raw
+
+            tables:
+
+            - name: customers
+
+                description: "Customer information received from the CRM system."
+
+                config:
+                freshness:
+                    warn_after:
+                    count: 2
+                    period: hour
+
+                    error_after:
+                    count: 4
+                    period: hour
+
+                columns:
+
+                - name: customer_id
+                    description: "Unique identifier assigned to each customer."
+
+                    data_tests:
+                    - not_null
+                    - unique
+
+                - name: customer_name
+                    description: "Full name of the customer."
+
+                - name: email
+                    description: "Customer's registered email address."
+
+                - name: created_at
+                    description: "Timestamp when the customer record was created."
+- Overall picture:
+
+
+                                        raw.customers
+                                    │
+                ┌───────────────────┼───────────────────┐
+                │                   │                   │
+                ▼                   ▼                   ▼
+        Documentation          Freshness             Tests
+                │                   │                   │
+        "What is it?"        "Is it recent?"       "Is it valid?"
+                │                   │                   │
+                └───────────────────┼───────────────────┘
+                                    │
+                                Data source
 
 ---
 
