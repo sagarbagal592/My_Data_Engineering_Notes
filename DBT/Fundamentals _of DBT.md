@@ -52,7 +52,7 @@ sources:
 Jinja code:
 
 ```jinja
-{{ source('source_name', 'table_name') }}
+{{ source('schema_name', 'table_name') }}
 ```
 
 Instead of writing:
