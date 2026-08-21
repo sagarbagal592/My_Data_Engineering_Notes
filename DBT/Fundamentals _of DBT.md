@@ -588,6 +588,16 @@ An incremental model can handle:
 - Deleted records
 - Late-arriving records
 
+> `is_incremental()`: a Jinja macro that's True only when (a) the model is materialized incremental, (b) the table already exists, and (c) you're not doing a full-refresh run. On the very first run, this whole {% if %} block is skipped and dbt builds the full table.
+
+> `{{ this }}`: refers to the model's own current table — used to look up "what's the latest data I already have."
+
+> unique_key: tells dbt how to identify a row for update-vs-insert logic.
+
+> incremental_strategy: merge (default on most warehouses — upsert via MERGE), append (just insert, no updates — fastest, but duplicates possible), delete+insert (used where MERGE isn't supported), insert_overwrite (partition-level replace, common on BigQuery/Spark).
+
+> `--full-refresh` flag: forces dbt to drop and rebuild the incremental table from scratch (e.g., after a logic change or schema change).
+
 ### Incremental strategies
 
 Common incremental strategies include:
@@ -596,6 +606,23 @@ Common incremental strategies include:
 - `merge`
 - `delete + insert`
 - `insert_overwrite`
+
+        Incremental materialization
+                |
+                +-- append
+                |      └── Insert new rows
+                |
+                +-- merge
+                |      └── Insert + Update (upsert)
+                |
+                +-- delete+insert
+                |      └── Delete matching + Insert
+                |
+                +-- insert_overwrite
+                |      └── Replace affected partitions
+                |
+                +-- microbatch
+                        └── Process time-based batches
 
 ### dbt feature: on_schema_change
 
@@ -667,6 +694,13 @@ The original notes introduce `ephemeral` as the fourth core materialization but 
 
 ---
 
+### 5.5 `materialized_view`
+
+- A materialized view is like a combination of a view + table.
+- A normal view stores only the SQL definition. So if you query the view 100 times, the underlying query may need to execute 100 times.
+- A materialized view stores the result of the query physically. So querying it can be much faster because the result is already computed.
+- The database then refreshes the materialized view when needed, depending on the database/platform.
+- dbt asks the underlying warehouse to create/manage a materialized view rather than a regular view or table.
 ## Materialization Comparison
 
 ### `VIEW`
@@ -708,6 +742,18 @@ EPHEMERAL
  ├── SQL gets incorporated into downstream models
  └── Good for small reusable intermediate logic
 ```
+```text
+| Materialization     | Stores data? | Main idea                                          |
+| ------------------- | ------------ | -------------------------------------------------- |
+| `view`              | ❌ No         | Store SQL, calculate when queried                  |
+| `table`             | ✅ Yes        | Store complete result                              |
+| `incremental`       | ✅ Yes        | Store result and update only changed/new data      |
+| `ephemeral`         | ❌ No         | Inline SQL as a CTE                                |
+| `materialized_view` | ✅ Yes        | Store query result and let the database refresh it |
+
+```
+
+
 ### Configuring materialization
 
 - Config precedence (highest wins): in-model config block > dbt_project.yml > default (view).
