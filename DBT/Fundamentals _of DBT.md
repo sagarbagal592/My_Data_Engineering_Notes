@@ -469,12 +469,13 @@ When dbt runs a model (`.sql` file), where and how should the resulting data be 
 - The **SQL** tells dbt **what data you want**.
 - The **materialization** tells dbt **how to create or store that result** in the data warehouse.
 
-The four core materializations are:
+The five core materializations are:
 
 1. `view`
 2. `table`
 3. `incremental`
 4. `ephemeral`
+5. `materialized_view`
 
 ---
 
@@ -606,6 +607,7 @@ Common incremental strategies include:
 - `merge`
 - `delete + insert`
 - `insert_overwrite`
+- `microbatch`
 
         Incremental materialization
                 |
@@ -646,7 +648,8 @@ Common incremental strategies include:
             materialized='incremental',
             on_schema_change='ignore'
         ) }}
-        This essentially says: Don't modify the existing target schema when the model's columns change.
+
+    > This essentially says: Don't modify the existing target schema when the model's columns change.
 
 2. fail
 
@@ -654,7 +657,8 @@ Common incremental strategies include:
             materialized='incremental',
             on_schema_change='fail'
         ) }}
-        This says: If the schema changes, stop the dbt run and tell me.
+
+    > This says: If the schema changes, stop the dbt run and tell me.
 
 3. append_new_columns
 
@@ -662,10 +666,11 @@ Common incremental strategies include:
             materialized='incremental',
             on_schema_change='append_new_columns'
         ) }}
-        Now dbt can add the new column to the existing target table.
+        
+    > Now dbt can add the new column to the existing target table.
 
 4. sync_all_columns
-- This goes further and synchronizes the target schema with the model schema, including adding/removing columns depending on the adapter's capabilities.
+   > This goes further and synchronizes the target schema with the model schema, including adding/removing columns depending on the adapter's capabilities.
 
 ### dbt run -- full-refresh
 
