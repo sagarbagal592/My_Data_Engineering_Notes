@@ -1,4 +1,4 @@
-# Fundamentals of dbt
+# dbt_section_1
 
 ## 1. What is dbt?
 
