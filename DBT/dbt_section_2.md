@@ -100,7 +100,9 @@ WHERE order_amount < 0
 - The logic is:
     - Query returns 0 rows → PASS
     - Query returns rows   → FAIL
-- Things to remember
+---
+
+#### Things to remember
 
     | Concept           | Meaning                       |
     | ----------------- | ----------------------------- |
