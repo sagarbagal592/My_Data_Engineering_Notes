@@ -142,7 +142,7 @@ UPPER(TRIM(customer_name))
 ```jinja
 {{ clean_string('customer_name') }}
 ```
-## 3.9 aapter
+## 3.9 adapter
 - This is especially useful when creating a macros that need to behave differently depending on the warehouse/database.
 ```jinja
 {% if target.type = 'databricks'%}
