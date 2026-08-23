@@ -1,6 +1,13 @@
+## Section 1
+Question 1 (easy):
+You have a small dimension table (dim_country, ~250 rows, rarely changes) that several downstream models join against. Which materialization would you pick, and why — walk me through your reasoning using the Golden Rule?
+---
+Question 2 (easy-medium):
+You add {{ config(materialized='table') }} inside a model file, but dbt_project.yml also sets +materialized: view for that folder. Which one wins, and why does dbt's config precedence work this way?
+---
 Question 3 (medium):
-
-    You have an incremental model on fct_events using unique_key='event_id' and incremental_strategy='merge'. After a few weeks in production, your data team notices some events that arrived late (e.g., an event with event_ts from 3 days ago shows up in today's load, but your incremental filter was where event_ts > (select max(event_ts) from {{ this }})). What's going wrong here, and how would you fix the filter logic to handle late-arriving data?
+You have an incremental model on fct_events using unique_key='event_id' and incremental_strategy='merge'. After a few weeks in production, your data team notices some events that arrived late (e.g., an event with event_ts from 3 days ago shows up in today's load, but your incremental filter was where event_ts > (select max(event_ts) from {{ this }})). What's going wrong here, and how would you fix the filter logic to handle late-arriving data?
+---
 Answer:
 
     {% if is_incremental() %}
@@ -246,14 +253,29 @@ Explanition:
 
 ---
 Question 4 (medium-hard, scenario):
-
-    You're reviewing a teammate's PR. They wrote an ephemeral model called int_cleaned_orders that does a moderately expensive REGEXP_REPLACE and windowing operation, and it's ref()'d by 6 different downstream models in the marts layer. Build times have gotten noticeably slower since this was merged. What's likely happening, and what would you recommend instead?
-
+You're reviewing a teammate's PR. They wrote an ephemeral model called int_cleaned_orders that does a moderately expensive REGEXP_REPLACE and windowing operation, and it's ref()'d by 6 different downstream models in the marts layer. Build times have gotten noticeably slower since this was merged. What's likely happening, and what would you recommend instead?
+---
 Answer:
-
-    By materializing int_cleaned_orders as a table, dbt runs the expensive transformation once, persists the result, and all 6 downstream models simply SELECT from an already-computed table — cheap reads instead of 6x redundant compute. This directly follows the Golden Rule too: it "took too long" (in aggregate, via fan-out) so you escalate from a non-materialized/view-like approach to a table.
+By materializing int_cleaned_orders as a table, dbt runs the expensive transformation once, persists the result, and all 6 downstream models simply SELECT from an already-computed table — cheap reads instead of 6x redundant compute. This directly follows the Golden Rule too: it "took too long" (in aggregate, via fan-out) so you escalate from a non-materialized/view-like approach to a table.
 
 ---
 Question 5 (hardest, scenario-based):
-
-    You're designing a fct_orders incremental model on Snowflake, materialized incremental with unique_key='order_id', incremental_strategy='merge'. One day, a teammate adds a new column (discount_amount) to the upstream source and updates the model's SELECT to include it. They run dbt run (not --full-refresh). What happens, why, and what config would you add to handle this gracefully going forward?
+You're designing a fct_orders incremental model on Snowflake, materialized incremental with unique_key='order_id', incremental_strategy='merge'. One day, a teammate adds a new column (discount_amount) to the upstream source and updates the model's SELECT to include it. They run dbt run (not --full-refresh). What happens, why, and what config would you add to handle this gracefully going forward?
+---
+## Section 2
+---
+Question 1 (easy):
+You add a not_null test to order_id on your fct_orders model. You run dbt test and it fails. In plain terms, what SQL is dbt actually running behind the scenes to determine this test failed, and what would that query's result look like?
+---
+Question 2 (easy-medium):
+Your company gets a fresh CSV export of "valid product categories" (12 rows, changes maybe twice a year) from the merchandising team. A teammate suggests loading this via source() pointing at a table an analyst manually uploads to the warehouse every time it changes. Would you agree with this approach, or suggest something else — and why?
+---
+Question 3 (medium, scenario):
+You've got a relationships test on fct_orders.customer_id pointing to dim_customers.customer_id, with default severity: error. One morning, your CI pipeline fails this test — but after checking, you confirm this is expected and temporary: a batch of new customers signed up via a promo campaign and haven't synced into dim_customers yet due to a known 2-hour lag in that pipeline (not a bug). You need dbt build to stop hard-failing on this every morning without just deleting the test. What would you configure, and what's the trade-off of your choice?
+---
+Question 4 (medium-hard, scenario):
+You're asked in an interview: "How would you test that the sum of line_item_amount in your stg_line_items model always equals order_total in fct_orders, per order?" Which type of test (generic or singular) fits this, and roughly how would you structure the SQL to make it return the correct pass/fail signal?
+---
+Question 5 (hardest, scenario-based):
+You're setting up a new dbt project and need to decide your overall testing strategy for a marts layer with 40 models feeding executive dashboards. Your manager asks: "Should we write a unit test or a data test for validating that our calculate_ltv() macro (a moderately complex SQL formula involving discounts, refunds, and tiered pricing) produces mathematically correct output?" Walk me through your reasoning — which would you pick, why, and what's the key limitation of the one you don't pick?
+---

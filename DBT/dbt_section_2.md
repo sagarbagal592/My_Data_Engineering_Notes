@@ -121,6 +121,7 @@ WHERE order_amount < 0
 ### 1.2 Unit Test
 - Data tests check the data after the model runs.
 - Unit tests check whether the model's SQL logic behaves correctly for specific input examples.
+- Unit Test is a newer, frequently-confused concept, data tests check real data in the warehouse; unit tests check your SQL logic against small, static, hand-crafted fixture inputs — similar to unit tests in software engineering, run in CI before you even build against real data. They're defined in YAML but live under models/, not tests/.
 - Example:
 ```sql
 SELECT
@@ -293,6 +294,33 @@ WARNING
 - Normally, when a test fails, dbt tells you that the test failed, but you may want to inspect the actual bad records.
 - dbt stores the failing rows in a database relation, typically in a test-failure schema/relation.
 
+---
+## Common missconceptions and mistakes
+1. Confusing data tests with unit tests — data tests validate real warehouse data after a build; unit tests validate SQL transformation logic against fixed fixtures, often in CI before deployment. Very commonly mixed up in interviews.
+2. Using seeds for large or frequently-changing data — bloats the git repo, wasn't designed for it; use a proper EL/source pipeline instead.
+3. Assuming relationships test = enforced database FK constraint — it's not enforced at write-time; it's a post-hoc check that runs on dbt test. Bad data can still land in the table between test runs.
+4. Setting everything to severity: error — noisy in CI, teams often calibrate severity so only truly critical checks (e.g., not_null on a primary key) block deploys, while softer checks warn.
+5. Forgetting store_failures and then having no easy way to debug which rows failed a test beyond a row count in the logs.
+6. Not using freshness on sources — teams build robust dbt test suites on their models but forget the raw data feeding them could already be stale, making all downstream tests meaningless.
+
+---
+
+## How this is tested in interviews
+
+1. "Difference between a generic test and a singular test — when would you use each?"
+2. "What's the difference between a data test and a unit test in dbt?" (very common, newer concept, catches people off guard)
+3. Scenario: "Your relationships test between fct_orders.customer_id and dim_customers.customer_id started failing overnight — walk me through your debugging process." (touches store_failures, checking upstream source freshness, checking for a recent schema/logic change, where clause filtering for known exceptions)
+4. "How do you prevent a single flaky test from blocking your entire production deploy?" (→ severity: warn, or selectively excluding it)
+5. "Would you use a seed to load your company's daily sales CSV export? Why or why not?" (tests understanding of seed misuse)
+
+---
+## Summary
+1. Sources = raw tables dbt didn't build; declared in YAML, referenced via source(); support freshness checks (warn_after/error_after).
+2. Seeds = small, static, git-controlled CSVs loaded via dbt seed; NOT for large/frequently-changing data.
+3. 4 built-in generic tests: unique, not_null, accepted_values, relationships.
+4. Singular tests = custom one-off SQL files in tests/; should return zero rows.
+5. Test config: severity (error/warn), where (scope), store_failures (debug persisted failures).
+6. Unit tests ≠ data tests — unit tests check SQL logic against fixed fixtures, live under models/, run pre-deployment.
 
 
 
