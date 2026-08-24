@@ -196,12 +196,15 @@ FROM {{ ref('fct_orders') }}
 ```
 
 ## 3.11 Example
-```sql
-# Suppose I have a table orders:
+```text
+Suppose I have a table orders:
     contains columnns order_id, status
     status = placed, shipped, delivered, cancelled
-# If I want to count status for each order_id
+    
+If I want to count status for each order_id
+```
 
+```sql
 SELECT
     order_id,
     sum(case when status = "placed" then 1 else 0 end) as placed_count,
@@ -211,9 +214,8 @@ SELECT
 FROM orders
 GROUP BY order_id;
 ```
-
-```yml
-
+> With jinja I make above static sql code dynamic!
+```sql
 {% set list = ['placed','shipped','delivered','cancelled'] %}
 
 SELECT
