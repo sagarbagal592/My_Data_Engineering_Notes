@@ -150,3 +150,46 @@ UPPER(TRIM(customer_name))
 {% endif %}
 ```
 - This allows you to write warehouse specific logic
+
+## 3.10 var()
+- In dbt var() is dbt jinja function used to retrieve a variable.
+- The basic syntax is
+```jinja
+{{ var('variable_name') }} # This is type 1 where I define variable without a default value
+                           # Here I need to make sure to pass variable value at runtime else it will be a error
+{{ var('variable_name','default_value') }} # Type 2 where I provide default value explicitly
+```
+
+
+```yml
+# In dbt_project.yml
+
+name: pysparkdbt
+
+vars:
+  variable_name: value
+```
+```bash
+# Or during runtime
+
+dbt run --vars '{"variable_name": 'value'}'
+```
+# If you already define value then it will override and if not then it will use this value.
+
+
+- This means: dbt, give me the value of variable named `variable_name`
+- The value of the variable can be defined in dbt_project.yml or passed at runtime using `--vars`
+- Example:
+
+```sql
+SELECT *
+FROM {{ ref('fct_orders') }}
+
+{% if var('is_test_run', true) %}
+    LIMIT 100
+{% endif %}
+```
+```text
+- Here I have defined variable with default value true. Means if I not provide any value during runtime it will still utilise that default value
+- If I run: dbt run --vars '{'is_test_run':false}' then it will simply override the default value and as per logic limit 100 will be skipped.
+```
