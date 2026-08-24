@@ -173,10 +173,9 @@ vars:
 # Or during runtime
 
 dbt run --vars '{"variable_name": 'value'}'
-```
+
 # If you already define value then it will override and if not then it will use this value.
-
-
+```
 - This means: dbt, give me the value of variable named `variable_name`
 - The value of the variable can be defined in dbt_project.yml or passed at runtime using `--vars`
 - Example:
@@ -190,6 +189,39 @@ FROM {{ ref('fct_orders') }}
 {% endif %}
 ```
 ```text
-- Here I have defined variable with default value true. Means if I not provide any value during runtime it will still utilise that default value
-- If I run: dbt run --vars '{'is_test_run':false}' then it will simply override the default value and as per logic limit 100 will be skipped.
+- Here I have defined variable with default value true. 
+    Means if I not provide any value during runtime it will still utilise that default value
+- If I run: dbt run --vars '{'is_test_run':false}' then it will simply override 
+    the default value and as per logic limit 100 will be skipped.
+```
+
+## 3.11 Example
+```sql
+# Suppose I have a table orders:
+    contains columnns order_id, status
+    status = placed, shipped, delivered, cancelled
+# If I want to count status for each order_id
+
+SELECT
+    order_id,
+    sum(case when status = "placed" then 1 else 0 end) as placed_count,
+    sum(case when status = "shipped" then 1 else 0 end) as shipped_count,
+    sum(case when status = "delivered" then 1 else 0 end) as delivered_count,
+    sum(case when status = "cancelled" then 1 else 0 end) as cancelled_count
+FROM orders
+GROUP BY order_id;
+```
+
+```yml
+
+{% set list = ['placed','shipped','delivered','cancelled'] %}
+
+SELECT
+    order_id,
+    {% for i in list %}
+        sum(case when status = {{i}} then 1 else 0 end) as {{i}}_count
+        {% if not loop.last %},{% endif %}
+    {% endfor %}
+    FROM {{ref(orders)}}
+    GROUP BY order_id;
 ```
