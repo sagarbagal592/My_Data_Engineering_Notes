@@ -142,6 +142,43 @@ UPPER(TRIM(customer_name))
 ```jinja
 {{ clean_string('customer_name') }}
 ```
+### 3.8.1 Two very different kinds of macro returns
+
+1. Macro 1: returns sql text
+
+> for example
+```jinja
+{% set macro cents_to_dollar(column_name) %}
+    {{ column_name }}/100
+{% endmacro %}
+```
+> You might call
+```sql
+SELECT
+    {{cents_to_dollar('amount_cents')}} as amount_dollar
+FROM {{ref(orders)}}
+```
+> The macro effectively produces sql text
+```sql
+SELECT
+    amount_cents/100 as amount_dollar
+FROM models.bronze.orders
+```
+
+2. Macro 2: return a list
+
+> Now I write my macro as
+
+```yml
+{% set macro get_payment_method %}
+    {% set methods = var('payment_methods',
+                        ['cerdit card','paypal','BHIM','Bank Transfer']
+                        )
+    %}
+    {{ return(methods) }}
+{% endmacro %}
+```
+
 ## 3.9 adapter
 - This is especially useful when creating a macros that need to behave differently depending on the warehouse/database.
 ```jinja
@@ -200,7 +237,7 @@ FROM {{ ref('fct_orders') }}
 Suppose I have a table orders:
     contains columnns order_id, status
     status = placed, shipped, delivered, cancelled
-    
+
 If I want to count status for each order_id
 ```
 
