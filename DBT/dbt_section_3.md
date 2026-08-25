@@ -170,7 +170,7 @@ FROM models.bronze.orders
 > Now I write my macro as
 
 ```yml
-{% set macro get_payment_method %}
+{% set macro get_payment_methods() %}
     {% set methods = var('payment_methods',
                         ['cerdit card','paypal','BHIM','Bank Transfer']
                         )
@@ -178,6 +178,41 @@ FROM models.bronze.orders
     {{ return(methods) }}
 {% endmacro %}
 ```
+> Then your model could contain
+
+```sql
+SELECT
+    order_id,
+
+    {% for method in get_payment_methods() %}
+
+        SUM(
+            CASE
+                WHEN payment_method = '{{ method }}'
+                THEN 1
+                ELSE 0
+            END
+        ) AS {{ method }}_count
+
+        {% if not loop.last %},{% endif %}
+
+    {% endfor %}
+
+FROM {{ ref('stg_payments') }}
+
+GROUP BY order_id
+```
+
+```text
+Here the important part is 
+{{ return(methods) }}
+This tells dbt:
+    Return the actual Jinja object methods from the macro.
+    and NOT generate sql text representing this object.
+The return jinja object we can iterate over.
+```
+- A macro can be used either to generate SQL text or to return a Jinja value for further Jinja processing. For a SQL-expression macro such as cents_to_dollars(), the macro output becomes part of the compiled SQL. 
+But when a macro returns a Jinja list that will be consumed by a for loop, we should use dbt's return() mechanism to return the actual list object. Otherwise, we risk treating the list as rendered text rather than as a Jinja collection that the caller can iterate over.
 
 ## 3.9 adapter
 - This is especially useful when creating a macros that need to behave differently depending on the warehouse/database.
