@@ -177,6 +177,11 @@ FROM models.bronze.orders
     %}
     {{ return(methods) }}
 {% endmacro %}
+
+# here I also write 
+{% set methods = ['cerdit card','paypal','BHIM','Bank Transfer'] %}
+# But, by using var() we will provide default value that can be overwrite during dbt run
+# This way we include dynamic nature
 ```
 > Then your model could contain
 
@@ -299,3 +304,154 @@ SELECT
     FROM {{ref(orders)}}
     GROUP BY order_id;
 ```
+
+## Packages in DBT
+- dbt packages are one of the most useful features in dbt because they allow you to reuse dbt code written by other people or other teams instead of building everything yourself.
+- A model is a transformation in your dbt project. A package is a reusable collection of dbt resources.
+- In dbt, you can install a package and use its:
+   - macros
+   - models
+   - tests
+   - seeds
+   - snapshots
+   - documentation
+   - other dbt resources
+- dbt packages are reusable collections of dbt resources such as macros, models, tests, and other project components. They allow teams to reuse functionality instead of implementing common transformations and utilities from scratch. Packages are declared in packages.yml and installed using dbt deps. Package versions can be managed through dependency configuration and package-lock.yml, which helps make builds reproducible.
+- dbt deps resolves and installs the packages declared in packages.yml. It doesn't execute models; it prepares the project's dependencies.
+- packages.yml->What dependencies do I want?
+- package-lock.yml-> What dependency versions were resolved?
+#### Why do we need packages:
+- Imagine you're working on a dbt project and you need to:
+    - generate surrogate keys
+    - perform common date transformations
+    - build data quality tests
+    - analyze source freshness
+    - perform common utility transformations
+    - generate standardized staging models
+- Instead of writing code multiple times you can leverage existing package.
+- A dbt package contain:
+```text
+Package
+│
+├── macros/
+│   ├── macro1.sql
+│   ├── macro2.sql
+│   └── macro3.sql
+│
+├── models/
+│   ├── model1.sql
+│   └── model2.sql
+│
+├── tests/
+│
+├── seeds/
+│
+├── snapshots/
+│
+├── analyses/
+│
+├── dbt_project.yml
+│
+└── README.md
+```
+### The most common use: Reusable macro
+```text
+Suppose someone has created a package containing:
+
+{% macro cents_to_dollars(column_name) %}
+    {{ column_name }} / 100.0
+{% endmacro %}
+
+After installing the package, you may be able to call:
+
+{{ package_name.cents_to_dollars('amount_cents') }}
+
+Instead of creating that macro yourself.
+```
+### How do we install package
+```text
+dbt uses a file called:
+
+packages.yml
+
+This file defines the packages your project depends on.
+
+For example:
+
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.3.0
+
+Then run:
+
+dbt deps
+
+This tells dbt:
+
+Download/install all packages specified in packages.yml.
+
+packages.yml is essentially your dependency definition file.
+
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.3.0
+```
+### What is dbt utils
+- One of the most widely used dbt package is dbt utils.
+- It is maintained by dbt labs and provides reuable macros and other functionality.
+
+### packages.yml vs package-lock.yml
+```text
+You'll encounter another file:
+
+package-lock.yml
+
+This is an important distinction.
+
+packages.yml
+
+Defines what your project wants.
+
+For example:
+
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.3.0
+package-lock.yml
+
+Records the dependency resolution that dbt actually uses.
+
+Conceptually:
+
+        packages.yml
+            ↓
+        declared dependency
+            ↓
+        dependency resolution
+            ↓
+        package-lock.yml
+            ↓
+        reproducible dependency installation
+
+You should generally commit the lock file to version control so your team/CI environment can reproduce the dependency set.
+```
+### Important terminology
+
+    | Term                      | Meaning                                                 |
+    | ------------------------- | ------------------------------------------------------- |
+    | **Package**               | Reusable collection of dbt resources                    |
+    | **`packages.yml`**        | Declares project dependencies                           |
+    | **`dbt deps`**            | Installs/resolves packages                              |
+    | **`dbt_packages/`**       | Directory containing installed packages                 |
+    | **`package-lock.yml`**    | Records resolved package dependencies/versions          |
+    | **Dependency**            | Package your project relies on                          |
+    | **Package registry**      | Repository/catalog from which packages can be installed |
+    | **Git package**           | Package installed from a Git repository                 |
+    | **Namespace**             | Name used to distinguish package resources              |
+    | **Macro**                 | Reusable Jinja/dbt logic                                |
+    | **Package model**         | dbt model supplied by a package                         |
+    | **Transitive dependency** | Dependency of one of your dependencies                  |
+    | **Version pinning**       | Restricting a package to a specific version             |
+    | **Private package**       | Internally maintained package                           |
+
+
