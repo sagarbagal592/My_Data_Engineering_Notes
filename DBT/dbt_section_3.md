@@ -316,10 +316,10 @@ SELECT
    - snapshots
    - documentation
    - other dbt resources
-- dbt packages are reusable collections of dbt resources such as macros, models, tests, and other project components. They allow teams to reuse functionality instead of implementing common transformations and utilities from scratch. Packages are declared in packages.yml and installed using dbt deps. Package versions can be managed through dependency configuration and package-lock.yml, which helps make builds reproducible.
-- dbt deps resolves and installs the packages declared in packages.yml. It doesn't execute models; it prepares the project's dependencies.
-- packages.yml->What dependencies do I want?
-- package-lock.yml-> What dependency versions were resolved?
+- dbt packages are reusable collections of dbt resources such as macros, models, tests, and other project components. They allow teams to reuse functionality instead of implementing common transformations and utilities from scratch. Packages are declared in `packages.yml` and installed using `dbt deps`. Package versions can be managed through dependency configuration and `package-lock.yml`, which helps make builds reproducible.
+- `dbt deps` resolves and installs the packages declared in `packages.yml`. It doesn't execute models; it prepares the project's dependencies.
+- `packages.yml`->What dependencies do I want?
+- `package-lock.yml`-> What dependency versions were resolved?
 #### Why do we need packages:
 - Imagine you're working on a dbt project and you need to:
     - generate surrogate keys
