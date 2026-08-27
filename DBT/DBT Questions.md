@@ -332,3 +332,29 @@ A new hire on your team runs dbt deps for the first time in 6 months and suddenl
 
 Question 5 (hardest, scenario-based):
 You're the senior engineer on a 40-model dbt project with a team of 5, some junior. You've noticed recurring PR issues: models querying source() directly from the marts layer (skipping the staging layer), a few models with zero tests, and one long chain of ephemeral models 4 layers deep causing slow compiles. Your manager asks you to enforce these architectural standards automatically, rather than relying on manual code review catching them every time. What would you reach for, and how would it fit into your CI/CD pipeline?
+
+
+# Section 4
+
+Question 1 (easy):
+A customer's email address changes in your source customers table on April 10th. You're running a timestamp-strategy snapshot on this table daily. In plain terms, what will your snapshot table show for this customer's record — how many rows, and what will the dbt_valid_from/dbt_valid_to values look like for each?
+
+---
+
+Question 2 (easy-medium):
+Your products snapshot uses strategy: check with check_cols: ['price']. A product's description field gets updated (typo fix), but its price stays exactly the same. What happens in the snapshot table — does a new row get created? Why or why not?
+
+---
+
+Question 3 (medium, scenario):
+Your manager asks: "Why don't we just use an incremental model with unique_key to track customer address history, instead of a separate snapshot?" How would you explain the difference — specifically, what would an incremental model do differently (and wrongly, for this use case) compared to a snapshot when a customer's address changes?
+
+---
+
+Question 4 (medium-hard, scenario):
+You've set up a timestamp-strategy snapshot on orders, updated_at column, running daily via an orchestrator. Six months later, someone notices the snapshot table has way more rows than expected — way more "versions" per order than the actual number of real status changes. Investigation reveals the source system's ETL process re-writes the entire orders table nightly (drop and recreate) as part of its own sync — even for rows where nothing actually changed, the updated_at column gets refreshed to "now" during that rewrite regardless of whether the underlying data changed. What's going wrong, and how would you fix your snapshot configuration to avoid this?
+
+---
+
+Question 5 (hardest, scenario-based):
+You've inherited a dbt project where a snapshot named customers_snapshot was built directly on top of {{ ref('dim_customers') }} — a mart-layer model (already heavily transformed, joined with 3 other tables, deduplicated) — instead of on the raw source(). Your manager wants to know: what could go wrong architecturally with snapshotting a transformed mart instead of a raw source, and how would you re-architect this? Think about at least two distinct failure modes.
