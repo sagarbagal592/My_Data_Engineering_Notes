@@ -66,7 +66,7 @@ we write:
 
 ```sql
 SELECT *
-FROM {{ source('source', 'fact_sales') }}
+FROM {{ source('schema_name', 'fact_sales') }}
 ```
 
 ### Why use `source()`?
@@ -748,13 +748,13 @@ EPHEMERAL
  └── Good for small reusable intermediate logic
 ```
 ```text
-| Materialization     | Stores data? | Main idea                                          |
-| ------------------- | ------------ | -------------------------------------------------- |
-| `view`              | ❌ No         | Store SQL, calculate when queried                  |
-| `table`             | ✅ Yes        | Store complete result                              |
-| `incremental`       | ✅ Yes        | Store result and update only changed/new data      |
-| `ephemeral`         | ❌ No         | Inline SQL as a CTE                                |
-| `materialized_view` | ✅ Yes        | Store query result and let the database refresh it |
+| Materialization     | Stores data?  | Main idea                                          |
+| ------------------- | ------------  | -------------------------------------------------- |
+| `view`              | ❌ No        | Store SQL, calculate when queried                  |
+| `table`             | ✅ Yes       | Store complete result                              |
+| `incremental`       | ✅ Yes       | Store result and update only changed/new data      |
+| `ephemeral`         | ❌ No        | Inline SQL as a CTE (Common Table Expression)      |
+| `materialized_view` | ✅ Yes         Store query result and let the database refresh it |
 
 ```
 
@@ -780,7 +780,7 @@ EPHEMERAL
 - "Incremental = always faster." Not necessarily — the initial build is still a full table scan (as slow as table), and incremental models add complexity (late-arriving data, backfills, schema drift) that a plain table doesn't have. Don't reach for incremental prematurely — follow the Golden Rule.
 - Hardcoding schema names instead of ref()/source() — breaks the DAG, breaks environment portability (dev vs prod), and dbt can no longer determine build order or lineage.
 - Forgetting unique_key on a merge-strategy incremental model — without it, dbt can't tell what to update vs. insert, and you can silently get duplicate rows.
-- Thinking ephemeral models are "free" performance-wise — they're inlined as CTEs into every downstream model that references them, so if 10 models ref() the same ephemeral model, that CTE logic gets recompiled and re-executed 10 times. Overusing ephemeral models on expensive logic can hurt performance.
+- Thinking ephemeral models are "free" performance-wise — they're inlined as CTEs (Common Table Expression) into every downstream model that references them, so if 10 models ref() the same ephemeral model, that CTE logic gets recompiled and re-executed 10 times. Overusing ephemeral models on expensive logic can hurt performance.
 - Not understanding is_incremental() runs False on first run — people are sometimes confused why a fresh dbt run on an incremental model builds the entire table rather than "nothing" (since there's nothing to compare against yet).
 - Confusing materialized_view (warehouse-native, DB-managed refresh) with dbt's incremental (dbt-orchestrated batch refresh) — these solve a similar problem differently and interviewers like probing which one you'd pick and why
 
