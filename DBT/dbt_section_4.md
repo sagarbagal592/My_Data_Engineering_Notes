@@ -1,8 +1,8 @@
 # DBT Snapshots
 ### The Analogy
-```text
+
 Imagine a customer's shipping address changes in your source system on March 1st. If you just keep overwriting that value, by June you have no idea the customer used to live somewhere else — history is erased. A snapshot is like a photo album for your data: every time you run it, dbt takes a "photo" of the current state, and if something's changed since the last photo, it closes out the old photo (marks it as no-longer-current) and inserts a new one — while keeping every old photo permanently in the album. You can flip back through the album and answer "what did this record look like on any given date in the past?"
-```
+
 - It is important concept when you start working with historical data and slowly changing dimension(SCD type 2)
 - A dbt snapshot allows you to capture changes to records over time.
 - A dbt snapshot is a dbt feature used to track changes in source data over time. It captures different versions of a record instead of simply retaining the latest value. Snapshots are commonly used to implement Slowly Changing Dimension Type 2. dbt identifies records using a unique key and detects changes using strategies such as timestamp or check. It then maintains metadata such as dbt_valid_from and dbt_valid_to to indicate the period during which each version of a record was valid.

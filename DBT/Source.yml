@@ -1,0 +1,29 @@
+sources:
+    - name: source
+      database: my_dbt_project
+      schema: source
+
+      freshness:
+        warn_after:
+            count: 2
+            period: hour
+        error_after:
+            count: 4
+            period: hour
+        loaded_at_field: created_at
+    
+      tables:
+
+        - name: customers
+
+          loaded_at_field: created_at   
+
+          columns:
+
+            - name: customer_id
+            
+              data_tests:
+                - not_null
+                - unique
+
+

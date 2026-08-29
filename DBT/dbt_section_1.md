@@ -314,50 +314,51 @@ sources:
 
 - Source documentation in dbt is the process of adding descriptions and metadata to your source data so that other data engineers, analysts, and stakeholders can understand what the source represents, what its tables mean, and what individual columns contain.
 - complete example
+```yml
+version: 2
 
-        version: 2
+sources:
 
-        sources:
+- name: raw
 
-        - name: raw
+    description: "Raw data ingested from operational systems."
 
-            description: "Raw data ingested from operational systems."
+    schema: raw
 
-            schema: raw
+    tables:
 
-            tables:
+    - name: customers
 
-            - name: customers
+        description: "Customer information received from the CRM system."
 
-                description: "Customer information received from the CRM system."
+        config:
+        freshness:
+            warn_after:
+            count: 2
+            period: hour
 
-                config:
-                freshness:
-                    warn_after:
-                    count: 2
-                    period: hour
+            error_after:
+            count: 4
+            period: hour
 
-                    error_after:
-                    count: 4
-                    period: hour
+        columns:
 
-                columns:
+        - name: customer_id
+            description: "Unique identifier assigned to each customer."
 
-                - name: customer_id
-                    description: "Unique identifier assigned to each customer."
+            data_tests:
+            - not_null
+            - unique
 
-                    data_tests:
-                    - not_null
-                    - unique
+        - name: customer_name
+            description: "Full name of the customer."
 
-                - name: customer_name
-                    description: "Full name of the customer."
+        - name: email
+            description: "Customer's registered email address."
 
-                - name: email
-                    description: "Customer's registered email address."
-
-                - name: created_at
-                    description: "Timestamp when the customer record was created."
+        - name: created_at
+            description: "Timestamp when the customer record was created."
+```
 - Overall picture:
 
 
