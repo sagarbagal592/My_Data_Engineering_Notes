@@ -310,17 +310,17 @@ row_number().over(window_spec)
 
 # Interview Questions
 
-## 1. What is a Window Function?
+1. What is a Window Function?
 
 A Window Function performs calculations over a group of rows while
 preserving every row.
 
-## 2. Why not use `groupBy()`?
+2. Why not use `groupBy()`?
 
 Because `groupBy()` aggregates data and reduces rows, whereas Window
 Functions preserve rows.
 
-## 3. Why is `row_number()` used for deduplication?
+3. Why is `row_number()` used for deduplication?
 
 It assigns `1` to the latest record (after ordering), making it easy to
 keep only the latest version of each business key.
@@ -343,5 +343,5 @@ keep only the latest version of each business key.
   Common Use Cases: Deduplication, Ranking, Latest Record, Running Totals, Lead/Lag
                                       
 ------------------------------------------------------------------------------
-### Understanding Window Functions and `row_number()` is essential for Spark, SQL, Databricks, and Data Engineering interviews.
+
 
