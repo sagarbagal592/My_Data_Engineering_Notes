@@ -110,7 +110,7 @@ from {{ source('raw', 'customers') }}
 - Dimension tells us about something. Fact tells us what happened involving that something.
 
 ## What is START Schema
-- A star schema is data warehouse design where a central fact table is surrounded by munltiple dimension tables.
+- A star schema is data warehouse design where a central fact table is surrounded by multiple dimension tables.
 
                         dim_customer
                             |
@@ -122,7 +122,7 @@ from {{ source('raw', 'customers') }}
 
 - Star Schema is a dimensional modeling technique where a central fact table containing business measurements is connected to surrounding dimension tables containing descriptive attributes.
 
-# Slowly Changing Dimension (SCCD)
+# Slowly Changing Dimension (SCD)
 - A dimension is a table which stores descriptive information. Suppose we have a dim_customer table. One of the customer currently lives in Pune, after few months customer shifted to Mumbai. Now we have to store those records the first is Pune and latest is Mumbai. How we store? What is the strategy? SCD answer those questions.
 - There are three types of SCD.
 ## SCD Type 1
