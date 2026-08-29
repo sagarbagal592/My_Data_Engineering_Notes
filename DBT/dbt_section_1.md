@@ -82,7 +82,7 @@ So, `source()` is not just a shortcut for writing a table name. It makes the rel
 
 - **`source()`** is used when referring to a table that is external to dbt's model. (I am getting data from outside my dbt model)
 - **`ref()`** is used when referring to another dbt model.(I am getting data from another dbt model)
-
+- Sources represent data loaded into the warehouse. Models transform that data. source() references raw sources, while ref() references dbt models and creates dependencies in the DAG.
 ### Source freshness
 
 - Source freshness is very important concept because its let you answer: Is my upstream/source data arriving on time? or is it stale?
