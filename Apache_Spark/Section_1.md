@@ -1,5 +1,5 @@
 # Spark Fundamentals and Architecture
 
+![Spark Architecture](image.png)
 
-
-<img src="![alt text](image.png)" alt="DBT Architecture" width="800" height="500">
+---
