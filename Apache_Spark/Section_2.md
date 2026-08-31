@@ -43,7 +43,7 @@ rdd = sc.textFile("data.txt")
 word_counts_rdd = (rdd.flatMap(lambda line: line.split(" "))
                        .map(lambda word: (word, 1))
                        .reduceByKey(lambda a, b: a + b))
-                       
+
 
 # DataFrame approach — high-level, declarative
 df = spark.read.text("data.txt")
@@ -51,3 +51,12 @@ word_counts_df = (df.select(explode(split(df.value, " ")).alias("word"))
                      .groupBy("word")
                      .count())
 ```
+
+Lazy Evaluatyion
+```py
+df = spark.read.csv("sales.csv", header=True)     # nothing executes
+filtered = df.filter(df.amount > 100)              # still nothing executes
+selected = filtered.select("customer", "amount")   # still nothing executes
+selected.show()                                    # NOW it all runs, as one Job
+```
+If sales.csv didn't exist, you wouldn't get an error until the .show() line — not the .read() line — because Spark hasn't actually tried to read anything yet.
