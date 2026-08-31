@@ -40,3 +40,26 @@ from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.appName('MyFirstApp').getOrCreate()
 ```
+
+## The Execution Hirarchey: Application->Job->Stage->Task
+
+1. Application: 
+    - Your entire Spark program, start to finish. One application can run many jobs.
+2. Job: 
+    - created every time your code calls an action: an operation that actually triggers computation and produces a result (.count(), .collect(), .show(), .write(), etc. no action no job). One Job is everything needed to compute that one result.
+3. Stage:
+    - A Job gets broken into Stages. A new stage boundary appears whenever data needs to be shuffled — physically redistributed across the network between executors.
+    - Within one stage, no data needs to move between partitions, so the work runs independently in parallel.
+4. Task:
+    - The smallest unit of execution: one Stage's computation applied to one partition. If your data has 200 partitions at that point, that stage has 200 tasks, distributed across whatever executor cores are free.
+
+> Number of Tasks in Stage = Number of Partitions being processed in that Stage.
+
+## Deployment Models
+1. Client Mode:
+    - The Driver runs on the machine you submitted from (your laptop, a notebook server, an edge node).
+    - Good for interactive work and debugging.
+    - Risk: if that machine disconnects/fails, the whole application dies.
+2. Cluster Mode:
+    - The Driver itself launches inside the cluster, on a worker node, managed by the Cluster Manager.
+    - This is what production pipelines use, since a job scheduled by something like Airflow doesn't need to stay connected to babysit it.
