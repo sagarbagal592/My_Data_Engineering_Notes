@@ -1,4 +1,5 @@
 # Spark Fundamentals and Architecture
+- Apache Spark is an open-source,lightning fast big data framework which is designed to enhance the computational speed.
 
 ![Spark Architecture](image.png)
 
@@ -7,7 +8,7 @@ The core idea:
 - Apache Spark is a distributed computing engine: it processes very large datasets by splitting the work across many machines and running the pieces in parallel, then combining the results — instead of one machine grinding through everything alone. Its biggest advantage over its predecessor, Hadoop MapReduce, is that it does most of this in memory (RAM) instead of constantly writing intermediate results to disk, which makes it dramatically faster, especially for workloads that touch the same data repeatedly.
 
 - Two terms to lock in immediately:
-    - Distributed computing — splitting one big computation across multiple machines that coordinate to produce a single result.
+    - Distributed Computing Engine — splitting one big computation across multiple machines that coordinate to produce a single result.
     - In-memory processing — keeping intermediate data in RAM rather than writing it to disk between steps. RAM is roughly 100x faster to read/write than disk.
 
 Why Spark Exists?
