@@ -14,7 +14,7 @@ The core idea:
 Why Spark Exists?
 
 - Before Spark, Hadoop MapReduce was the standard for processing huge datasets. It works in two phases — Map (transform) and Reduce (aggregate) — but after every phase, it writes results to disk before the next one starts. For multi-step pipelines, or anything iterative (like training a model, which needs many passes over the same data), that disk I/O adds up to a serious slowdown.
-- Spark (built at UC Berkeley, donated to Apache in 2013) fixes this by keeping data in memory across operations whenever it fits, and by offering a much richer API than just "map" and "reduce."
+- Spark (built at amplab, UC Berkeley, donated to Apache in 2013) fixes this by keeping data in memory across operations whenever it fits, and by offering a much richer API than just "map" and "reduce."
 - Spark did not replace all of Hadoop. It mainly replaced the MapReduce processing engine. Spark still commonly runs on Hadoop infrastructure — reading from HDFS (Hadoop's storage layer) and using YARN (Hadoop's resource manager) to get its machines. Spark itself has no built-in permanent storage system.
 
 ## Sparks Architecture

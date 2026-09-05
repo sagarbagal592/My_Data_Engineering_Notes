@@ -1,7 +1,10 @@
 # Core Abstractions: RDD, DataFrame, DataSets
 
 The Core Idea:
-- RDD, DataFrame and DataSet are Spark's three ways of representing a distributed collection of data. They differ in how much structure Spark knows about your data, and therefore how much Spark can optimize on your behalf. Spark's evolution has moved from RDD (original, low-level) to DataFrame (high-level, schema-aware, the modern default) — and in PySpark specifically, DataFrame is what you'll use for the vast majority of real work.
+- RDD, DataFrame and DataSet are Spark's three ways of representing a distributed collection of data. They differ in how much structure Spark knows about your data, and therefore how much Spark can optimize on your behalf. Spark's evolution has moved from RDD (original, low-level) to DataFrame (high-level, schema-aware, the modern default) — and in PySpark specifically, DataFrame is what you'll use for the vast majority of real work. 
+- RDD (low-level, no structure, full control).
+- DataFrame (structured, schema-aware, what you'll use almost all the time).
+- Dataset (DataFrame plus compile-time type safety — Scala/Java only)
 
 1. RDD (Resilient Distributed Dataset)
 - An RDD is Spark's original, fundamental data structure: an immutable, distributed collection of objects that Spark can process in parallel.
@@ -10,6 +13,7 @@ The Core Idea:
     - **Dataset** — just a collection of data: numbers, tuples, custom objects, whatever your code works with.
 - Key Properties:
     - RDDs are immutable (a transformation always produces a new RDD rather than modifying the existing one), and they're a low-level API — you manipulate them almost like ordinary Python collections (map, filter, reduce), which gives you total flexibility but means Spark has no idea what your data actually means, so it can't optimize much.
+    - **Notice**: Spark has no idea what's inside these lines beyond "some Python objects." It can't tell you "this looks like a number column" — to Spark, an RDD is just an opaque bag of objects.
 
 ---
 2. Transformations Vs Actions and Lazy Evaluation
@@ -31,7 +35,7 @@ The Core Idea:
 ---
 
 4. DataSet
-- A Dataset is a distributed collection of strongly-typed objects — available only in Scala and Java, the JVM languages.
+- A Dataset is a distributed collection of strongly-typed objects (Strongly typed = Spark knows the exact type/structure of each object.) — available only in Scala and Java, the JVM languages.
 - It combines RDD's compile-time type safety with DataFrame's Catalyst-powered performance. 
 
 ---
