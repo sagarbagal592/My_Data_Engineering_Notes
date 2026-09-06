@@ -14,7 +14,7 @@ df.groupBy("customer_id").agg(sum("amount")).show()
 ```
 # Catalyst Optimizer: Stage by Stage
 
-![alt text](image-1.png)
+            ![alt text](image-1.png)
 
 1. Unresolved Logical Plan:
     - Spark parses your SQL or DataFrame code into a tree of operations, but hasn't yet checked whether the columns or tables you referenced actually exist.
