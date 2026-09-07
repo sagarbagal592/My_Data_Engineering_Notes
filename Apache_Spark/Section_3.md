@@ -165,7 +165,9 @@ Answer:
 Question 5: We've established a UDF-based filter blocks predicate pushdown. Does it also block projection pruning? Suppose your DataFrame has 20 columns, your UDF only reads column A, and your final .select() only needs columns A and B. Would the other 18 columns still get skipped when reading from the source, despite the UDF's presence? Why or why not?
 
 Answer:
-
+- Here pruning survives and pushdown doesn't.
+- projection pruning only needs to know which columns are referenced anywhere in the plan — and that's still fully visible through a UDF, because the UDF's arguments (my_udf(df.A)) are explicit column references sitting right in the expression tree, not hidden inside the function body. What Catalyst genuinely can't see is what the UDF's logic does with that value once it's inside — and that's specifically what blocks pushdown, since Catalyst can't reformulate "this arbitrary Python function returns true" into a condition a Parquet reader can filter on. Column references and function logic are two different kinds of information, and a UDF only hides one of them.
+- So concretely, in your scenario: yes, the other 18 columns still get pruned. Catalyst sees "A" referenced inside the UDF call and "A, B" referenced in the final select — that's the complete set of columns ever touched anywhere in the plan, so the remaining 18 are never even read from the source.
 
 ---
 
