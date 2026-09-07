@@ -112,3 +112,60 @@ df.show()
 - left_semi filters using another table; left_anti finds rows missing from it.
 - UDFs are Catalyst-invisible; Python UDFs add JVM <-> Python serialization cost — prefer built-ins, or Pandas UDFs when unavoidable.
 - Window functions (partitionBy + orderBy) compute per-row values over a group without collapsing rows — the only way to solve "top N per group."
+
+# Section 3 Quiz
+
+Question 1: In your own words, why do the SQL syntax and the DataFrame API have identical performance for equivalent logic? What's actually happening underneath that makes this true?
+
+Answer:
+- A SQL string gets parsed into a logical plan tree — an internal, structured representation of "read this, filter on that, select these columns."
+- A chain of DataFrame calls like .filter().select() builds that exact same kind of tree directly, just via method calls instead of text parsing. 
+- So by the time Catalyst even starts its work, there is no "SQL version" and "DataFrame version" of the plan. They've already converged into one single, indistinguishable object (the unresolved logical plan). Catalyst has no way to tell which syntax produced the tree in front of it, because that information is gone the moment parsing/building finishes.There is nothing left to distinguish by the time optimization begins.
+
+-------
+
+Question 2: Why specifically are Python UDFs slower than Spark's built-in functions — and would this same performance gap exist if you wrote your UDF in Scala instead of Python? Why or why not?
+
+Answer:
+- Spark engine built on jvm. If we write an pyhon UDF it need an python interpreter, that means data from jvm get serialized in python process, data got processed and again serialized back to jvm. This will increase overhead makes application slower. Also an python udf is opaque box for spark as spark doesnt know what is inside your udf so no pushdown, no pruning will happen.
+- Scala compiles to JVM bytecode, and Spark's engine is the JVM. So a Scala UDF runs natively, in-process, right alongside the rest of the execution — no serialization boundary to cross, because there's no second runtime involved at all. But, Catalyst still can't see inside a Scala UDF either. It's still an opaque box to the optimizer — no pushdown, no pruning, no reordering around it.
+- Python UDF — pays two separate costs: serialization overhead and lost optimizer visibility.
+- Scala UDF — pays only one of those two costs: lost optimizer visibility, but not serialization.
+
+----
+
+Question 3: You have a DataFrame of orders and want every order row tagged with the running total of revenue for its customer, ordered by date — each individual order row must survive in the output, just with this new column added. Would you reach for groupBy or a window function here, and write the actual code for the window spec that would compute this running total?
+
+Answer:
+
+- Here window function is the right choice
+- code
+```py
+from pyspark.sql.functions import sum as _sum
+from pyspark.sql.window import Window
+
+window_spec = (
+    Window.partitionBy("customer_id")
+          .orderBy("order_date")
+          .rowsBetween(Window.unboundedPreceding, Window.currentRow)
+)
+
+df = df.withColumn("running_total_revenue", _sum("revenue").over(window_spec))
+df.show()
+```
+
+---
+
+Question 4: Suppose a customer has two orders on the exact same order_date, and you're using the default window frame (no explicit rowsBetween). What running_total_revenue value would each of those two same-day orders show? Is that what someone asking for a "running total" would actually want?
+
+Answer:
+
+---
+
+Question 5: We've established a UDF-based filter blocks predicate pushdown. Does it also block projection pruning? Suppose your DataFrame has 20 columns, your UDF only reads column A, and your final .select() only needs columns A and B. Would the other 18 columns still get skipped when reading from the source, despite the UDF's presence? Why or why not?
+
+Answer:
+
+
+---
+
