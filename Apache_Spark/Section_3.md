@@ -2,7 +2,8 @@
 
 The Core Idea
 - Spark SQL is the module that lets you query DataFrames using SQL syntax or DataFrame API — and critically, SQL queries and DataFrame method chains both get compiled into the same internal representation before Spark ever touches your data. The thing responsible for turning either one into a fast execution plan is the Catalyst Optimizer.
-
+- Wich syntax you use is a style choice and not a performance one.
+## spark sql, two syntaxes one plan
 ```py
 df.createOrReplaceTempView("orders")
 spark.sql("SELECT customer_id, SUM(amount) FROM orders GROUP BY customer_id").show()
@@ -13,7 +14,7 @@ df.groupBy("customer_id").agg(sum("amount")).show()
 # There is no performance difference between these two. Pick whichever is more readable for the task at hand
 ```
 # Catalyst Optimizer: Stage by Stage
-
+- Every query either SQL or DataFrame passes through same five stages before a single byte of data moves.
 ![alt text](image-1.png)
 
 1. Unresolved Logical Plan:
@@ -28,3 +29,41 @@ df.groupBy("customer_id").agg(sum("amount")).show()
     - Catalyst can generate several possible execution strategies (e.g., different join algorithms) and picks the cheapest one using a cost model.
 5. RRDs(executed):
     - The selected plan finally runs, using Tungsten (Spark's execution engine for CPU/memory efficiency) to generate optimized bytecode directly rather than running generic interpreted operators — this is called whole-stage code generation.
+
+# Common transformations and join types
+
+- select, filter/where, withColumn, drop, orderBy, groupBy + .agg(), distinct, dropDuplicates.
+
+joins:
+- inner, left, right and full. There are two more joins
+    - left_semi: Keep the left side row that have match on right, but never bring right side columns into the result.
+    - left_anti: keep left side row that have no match on right.
+    - Both joins return columns from left table/dataframe.
+```py
+# Let say we have two tables customers and orders
+
+df1 = customers.join(orders, customers.customer_id == orders.custome_id, 'left_semi')
+df2 = customers.join(orders, customers.customer_id == orders.custome_id, 'left_anti')
+
+df1.show()
+df2.show()
+```
+
+# UDFs (User Defined Functions):
+
+- A UDF is a custom code you register with spark for logic the built-in function dont cover.
+```py
+ from pyspark.sql.functions import udf
+ from pyspark.sql.types import StringType()
+
+ def categorize(amount):
+    return 'High' if amount > 1000 else 'Medium' if amount > 100 else 'low'
+
+ categorize_udf = udf(categorize, StringType())
+
+ df.withColumn('Tier', categorize_udf(df.amount))
+
+```
+- Catalyst cannot see inside a UDF. It's an opaque box, so no pushdown, no pruning, no reordering can happen around it.
+- For Python UDFs specifically, there's a physical cost: Spark's engine runs in the JVM, but your Python function can only run in a Python process. So for every row, data gets serialized out of the JVM, sent to Python, processed, serialized back, and returned — a real, per-row round trip.
+- Best practice: prefer built-in functions (pyspark.sql.functions) whenever an equivalent exists. When custom Python logic is genuinely unavoidable, Pandas UDFs (vectorized, using Apache Arrow — a fast columnar in-memory format) are far faster, since they batch many rows into one call instead of round-tripping row by row.
