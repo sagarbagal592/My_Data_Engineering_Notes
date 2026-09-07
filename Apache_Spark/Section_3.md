@@ -67,3 +67,48 @@ df2.show()
 - Catalyst cannot see inside a UDF. It's an opaque box, so no pushdown, no pruning, no reordering can happen around it.
 - For Python UDFs specifically, there's a physical cost: Spark's engine runs in the JVM, but your Python function can only run in a Python process. So for every row, data gets serialized out of the JVM, sent to Python, processed, serialized back, and returned — a real, per-row round trip.
 - Best practice: prefer built-in functions (pyspark.sql.functions) whenever an equivalent exists. When custom Python logic is genuinely unavoidable, Pandas UDFs (vectorized, using Apache Arrow — a fast columnar in-memory format) are far faster, since they batch many rows into one call instead of round-tripping row by row.
+
+# Window Function
+
+- A window function computes a value per row based on related group of rows without collapsing those rows unlike .groupBy()
+```py
+from pyspark.sql.functions import rank
+from pyspark.sql.window import Window
+
+df = df.withColumn('dept_rank', rank().over(Window.partitionBy(df.department).orderBy(df.salary).desc()))
+
+df.show()
+```
+- partitionBy()
+    - defines the window(group) like groupBy() but rows stays separate
+- orderBy()
+    - define row order within each window. Needed for ranking or running totals.
+- rank(), dense_rank(), row_number()
+    - differ in tie handling. rank leaves gap after a tie (1,1,3), dense_rank doesnt (1,1,2), row_number never ties (1,2,3)
+- Example: Need to find top 3 earners from each department
+```py
+from pyspark.sql.window import Window
+from pyspark.sql.functions import row_number
+
+df = df.withColumn('earners',row_number().over(Window.partitionBy('department').orderBy(df.salary.desc())))
+
+df = df.filter(df.earners <= 3)
+
+df.show()
+
+```
+- groupBy("department").max("salary") only ever gets you the single max per department, and it collapses every other column — you lose the individual employee rows entirely. Window functions solve a category of problem groupBy cannot, by design.
+# Common misconceptions and mistakes
+
+- "select() before filter() means Spark selects first." No — Catalyst reorders freely; pushdown typically filters as early as possible regardless of code order.
+- "UDFs are just as fast since they do equivalent work." False, especially in Python — lost optimizer visibility plus real JVM↔Python serialization cost.
+- "groupBy can get me top N per group." No — groupBy collapses rows; only window functions preserve individual rows while ranking within a group.
+- "rank() and row_number() are interchangeable." No — tie-handling differs.
+- "SQL syntax is slower than the DataFrame API" (or vice versa). False — identical plan, identical performance, for equivalent logic.
+
+# Revision
+- SQL and the DataFrame API compile to the identical Catalyst plan — pick whichever's convenient.
+- Pipeline: unresolved logical plan → logical plan (schema-validated) → optimized logical plan (pushdown, pruning) → physical plan (strategy chosen) → execution (Tungsten-compiled bytecode on executors).
+- left_semi filters using another table; left_anti finds rows missing from it.
+- UDFs are Catalyst-invisible; Python UDFs add JVM <-> Python serialization cost — prefer built-ins, or Pandas UDFs when unavoidable.
+- Window functions (partitionBy + orderBy) compute per-row values over a group without collapsing rows — the only way to solve "top N per group."
