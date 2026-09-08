@@ -27,7 +27,7 @@ df.groupBy("customer_id").agg(sum("amount")).show()
     2. **Column Pruning**: if your DataFrame has 50 columns but your query only touches 2, Catalyst (and the file reader, for columnar formats like Parquet) skips reading the other 48 entirely.
 4. Physical Plan:
     - Catalyst can generate several possible execution strategies (e.g., different join algorithms) and picks the cheapest one using a cost model.
-5. RRDs(executed):
+5. Execution:
     - The selected plan finally runs, using Tungsten (Spark's execution engine for CPU/memory efficiency) to generate optimized bytecode directly rather than running generic interpreted operators — this is called whole-stage code generation.
 
 # Common transformations and join types
