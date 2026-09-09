@@ -59,3 +59,39 @@ Disk / Network
     - Shuffle means Redistribute data between partitions
 - The easiest way to remember it is: Process → Partition by key → Write to disk → Transfer over network → Read/Deserialize → Process.
 ![alt text](image-2.png)
+
+# join strategy: broadcast join vs shuffle sort merge join
+
+- When one side of the join is small enough (controlled by `spark.sql.autoBroadcastJoinThreshold`, default 10 MB), Spark can use a Broadcast Hash Join by sending a copy of the small DataFrame to every executor, allowing each executor to join its local partition of the large DataFrame using a hash lookup, without shuffling the large side.
+- If neither side is small enough to broadcast, Spark generally uses a Shuffle Sort-Merge Join, where both DataFrames are shuffled based on the join key so matching keys land in the same partitions, then the partitions are sorted and merged locally.
+- Shuffle involves disk I/O, network I/O, serialization/deserialization, and sorting, it is more expensive than a broadcast join.
+- You can also explicitly request broadcast join:
+```py
+from pyspark.sql.functions import broadcast
+big_df.join(broadcast(small_df), "key")
+
+# "key" is the column on which you want to join the two DataFrames.
+```
+# Data Skew
+
+- Data skew is an uneven distribution of data across Spark partitions, usually after a shuffle.
+- For example, if most customers have a few orders but one customer has millions, a groupBy("customer_id") or join can send all records for that customer to the same partition because records with the same key must be colocated for correct processing. This creates a situation such as 199 tasks processing around 200 MB while one task processes 45 GB. That one task takes much longer, while the other executors finish and remain idle, making the entire stage wait for the slow task.
+- Skew can be caused by dominant/hot keys, highly frequent values, or large numbers of NULL values.
+- To diagnose it, use the Spark UI to compare task duration, shuffle-read size, shuffle-write size, input size, and spill, then investigate the data itself—for example, groupBy("customer_id").count().orderBy(...) can reveal unusually frequent keys.
+- For fixing skew, **AQE (Adaptive Query Execution)** is usually worth trying first because Spark can detect oversized post-shuffle partitions at runtime and, for supported skewed operations such as joins, split them into smaller pieces.
+- **Salting** is a manual technique where you add a random or deterministic suffix to a skewed key, such as turning C999 into C999_0, C999_1, etc., allowing the records to spread across multiple partitions; partial results must then be combined afterward.
+- Another approach is to **isolate the problematic key**, process it separately with a tailored strategy, and then union the result with the normal data.
+- The key decision is: confirm the skew first, identify the actual hot key, try AQE when appropriate, and use salting or separate processing when automatic handling isn't sufficient.
+
+Example  — spotting and fixing skew.
+You're aggregating revenue by customer_id, and the Spark UI shows one task taking 40 minutes while every other task in the stage finishes in 20 seconds. Investigating shows one customer_id — a bulk-order integrator — accounts for a huge share of all rows. Fix via salting:
+
+```py
+from pyspark.sql.functions import lit, floor, rand, concat
+
+salted = df.withColumn('salted_key', concat(df.customer_id, lit("_"), floor(rand()*10)))
+
+partial = salted.groupBy('salted_key', 'customer_id').sum('revenue')
+
+final = partial.groupBy('customer_id').sum('sum(revenue)')
+```
