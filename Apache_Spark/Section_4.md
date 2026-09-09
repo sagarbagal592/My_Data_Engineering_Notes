@@ -95,3 +95,45 @@ partial = salted.groupBy('salted_key', 'customer_id').sum('revenue')
 
 final = partial.groupBy('customer_id').sum('sum(revenue)')
 ```
+
+# Common misconceptions and mistakes
+
+- "repartition and coalesce do the same thing, just with different names." No — repartition always shuffles and can go up or down; coalesce only goes down and typically skips the shuffle, at the cost of not rebalancing existing skew.
+- "More shuffle.partitions is always safer." No — too many for the actual data size creates tiny partitions and scheduling overhead that can be worse than too few.
+- "Broadcast join is always better if it's available." Nearly always faster, but the "small" side still has to fit comfortably in every executor's memory simultaneously with everything else running — broadcasting something too close to the threshold on a memory-constrained cluster can cause its own problems.
+- "AQE makes manual tuning obsolete." It removes a lot of guesswork, but it reacts after a shuffle already happened — it can't prevent an unnecessary shuffle from being planned in the first place. Writing efficient logic still matters.
+
+# Revision
+
+- Partitioning: repartition (up or down, always shuffles) vs. coalesce (down only, usually avoids shuffle but can't fix skew).
+- Shuffle mechanics: map side writes to local disk; reduce side fetches over the network from every map task — disk + network + serialization is why shuffles are expensive.
+- Joins: broadcast (copy the small side everywhere, no shuffle) vs. shuffle/sort-merge (redistribute both sides by key) — controlled by `spark.sql.autoBroadcastJoinThreshold`
+- Skew: uneven key distribution overloads one partition/task; fixed via salting or AQE's automatic skew-splitting.
+- AQE: adjusts the plan using real post-shuffle statistics — coalesces partitions, splits skew, can switch join strategy at runtime. Default-on since Spark 3.2.
+
+# Section 4 Questions
+
+Question 1: In your own words, why does coalesce typically avoid a shuffle while repartition always triggers one — even when both are just changing the number of partitions?
+
+Answer:
+Coalesce's side, made precise: it merges a fixed, predetermined set of existing partitions into each new one — e.g., "new partition 1 = old partitions 1 and 2." That mapping is decided purely by partition index. Nobody needs to inspect a single row's contents or compute where it should go — so there's nothing that requires a network-wide, per-record redistribution.
+Repartition's side : to guarantee an evenly balanced (or hash/key-based) distribution across a target count, Spark has to decide, for every individual record, which new partition it belongs in — typically via a hash function or round-robin — and then physically send each record wherever that computed destination lives. That per-record computed reassignment, moved across the network, is the definition of a shuffle. There's no way around it if balance is the guarantee being made.
+repartition can increase partition count — splitting one partition's rows out into several — and that's simply impossible without redistributing records; there's no way to "split" data that's already sitting as one contiguous block without deciding where each piece goes. Since the same mechanism has to support both directions and guarantee balance, it always takes the shuffle path — even on a call that happens to be decreasing the count.
+
+---
+
+Question 2: Name the distinct costs that stack together to make a shuffle expensive, and explain why a narrow transformation like .filter() avoids all of them.
+
+Answer:
+A shuffle is expensive because of: Serialization, Network I/O, Disk I/O, Data Repartitioning, Sorting, Merging, CPU overhead. In  Narrow Transformation data stays where it is there no shuffle and hence avoids shuffles redistributing costs.
+
+---
+
+Question 3: You're joining a 2GB DataFrame against a 50MB DataFrame, and `spark.sql.autoBroadcastJoinThreshold` is set to its default (10MB). Will Spark auto-broadcast the 50MB side? And separately — even if it doesn't, is there anything you personally can still do about it?
+
+Answer:
+Spark will not automatically broadcast  the 50mb dataframe because 50mb>10mb. Spark will choose another join strategy involving shuffle.
+Using broadcast hint I can tell spark to broadcast 50mb dataframe.
+
+---
+
