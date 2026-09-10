@@ -31,6 +31,7 @@ Why Spark Exists?
 
 **Note**: A common point of confusion: a Worker Node is a machine; an Executor is a process running on it. One worker node can host more than one executor depending on configuration — they are not the same thing.
 
+![alt text](image-3.png)
 
 ## SparkContext and SparkSession
 
