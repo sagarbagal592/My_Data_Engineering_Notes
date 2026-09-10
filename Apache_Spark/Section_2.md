@@ -20,7 +20,8 @@ The Core Idea:
 - A transformation is any operation that returns a new RDD/DataFrame — .map(), .filter(), .select(), .groupBy().
 - Transformations are lazy: Spark doesn't compute anything when you call them. It just adds a step to the plan. Why be lazy on purpose? -> Because it lets Spark see your whole pipeline before running any of it, so it can optimize the entire thing as a unit — combining steps, reordering operations, skipping unnecessary work — rather than blindly executing line by line. It's the difference between planning a full road trip route in advance versus deciding each turn only once you reach it.
 - An action is an operation that actually triggers computation and either returns a result to the Driver or writes data out — .collect(), .count(), .show(), .write(). This is what creates a Job. The moment .show() fires, Spark takes the entire chain built up so far and executes it as one Job, splitting it into stages.
-
+- Transformations are lazy with respect to data computation. They build the logical plan, although Spark may still perform driver-side work such as resolving schema, column information, catalog metadata, or source metadata.
+- `spark.read` is a DataFrameReader API, not an action or transformation. Reading the data into a DataFrame is still lazy with respect to actual row processing; Spark creates the DataFrame/query plan, and an action such as show(), count(), or write triggers execution.
 ---
 
 3. DataFrame
