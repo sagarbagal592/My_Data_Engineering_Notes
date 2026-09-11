@@ -57,6 +57,8 @@ spark = SparkSession.builder.appName('MyFirstApp').getOrCreate()
 
 > Number of Tasks in Stage = Number of Partitions being processed in that Stage.
 
+![alt text](image-4.png)
+
 ## Deployment Models
 1. Client Mode:
     - The Driver runs on the machine you submitted from (your laptop, a notebook server, an edge node).
