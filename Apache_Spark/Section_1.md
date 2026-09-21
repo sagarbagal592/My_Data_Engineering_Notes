@@ -42,6 +42,7 @@ from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.appName('MyFirstApp').getOrCreate()
 ```
+![alt text](image-5.png)
 
 ## The Execution Hirarchey: Application->Job->Stage->Task
 
