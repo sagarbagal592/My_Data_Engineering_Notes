@@ -1,4 +1,4 @@
-# Follow below steps to create Snoflake account
+# Follow below steps to create Snowflake account
 
 1. Open `https://www.snowflake.com/en/`
 2. Select START FOR FREE
