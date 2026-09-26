@@ -141,10 +141,10 @@ compression = auto;
 ----------------------------------
 create or replace file format parquet
 type = parquet
-compression = auto
+compression = auto;
 -----------------------------------
 create or replace file format avro
 type = avro
-compression = auto
+compression = auto;
 ```
 
