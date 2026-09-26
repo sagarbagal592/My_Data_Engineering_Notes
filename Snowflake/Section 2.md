@@ -108,5 +108,43 @@ files=('OrderDetails.csv');
 SELECT * FROM my_db.public.orders_new1;
 ```
 
+# Creating File Formats
+- When loading data into Snowflake, you need to tell it how to parse the incoming files. File format objects define the structure, delimiters, compression, header rows, etc. Instead of specifying these properties inline every time you run a COPY command, you create a reusable file format object.
 
+## Setting up a file format
+- Create a dedicated schema to keep file format objects organized:
+```sql
+create or replace schema file_format
+```
+- Creating File Format Objects
+```sql
+create or replace file format csv_file_format
+type = csv
+field_delimiter = ','
+skip_header = 1;
+```
+- If you not mentioned any particular type it will create csv type file format. Once a file format is created, you cannot alter the type. This will fail.
+- You can inspect file format using
+```sql
+desc file format mydb.file_format.csv_file_format;
+``` 
+- You can alter:
+```sql
+alter file format mydb.file_format.csv_file_format
+set skip_header = 0;
+```
+- Other types of file formats:
+```sql
+create or replace file format json_file_format
+type = json
+compression = auto;
+----------------------------------
+create or replace file format parquet
+type = parquet
+compression = auto
+-----------------------------------
+create or replace file format avro
+type = avro
+compression = auto
+```
 
