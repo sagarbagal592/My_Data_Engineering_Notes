@@ -3,6 +3,9 @@
 
 ![Spark Architecture](image.png)
 
+
+![Spark ToolKit](image-6.png)
+
 ---
 The core idea:
 - Apache Spark is a distributed computing engine: it processes very large datasets by splitting the work across many machines and running the pieces in parallel, then combining the results — instead of one machine grinding through everything alone. Its biggest advantage over its predecessor, Hadoop MapReduce, is that it does most of this in memory (RAM) instead of constantly writing intermediate results to disk, which makes it dramatically faster, especially for workloads that touch the same data repeatedly.
