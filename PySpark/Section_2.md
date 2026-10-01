@@ -109,3 +109,43 @@ df = spark.read.schema(order_schema).parquet("s3://data-lake/raw/orders/")
 ```
 ![alt text](image-4.png)
 
+## Essential DataFrame operations
+
+```py
+df.show()           # first 20 rows, truncated to 20 chars
+
+df.show(5)          # first 5 rows
+
+df.show(5, False)   # first 5 rows, no truncation
+
+df.show(vertical=True)  # vertical format for wide tables
+
+# df.show() is an action — it triggers execution of the entire DAG up to that point.
+---------------------------------------------------------
+
+df.printSchema()  #  Inspect the Schema
+
+
+-------------------------------------------------------------
+
+df.count()    # Row Count
+
+--------------------------------------------------------
+
+df.columns   # ['order_id', 'customer_id', 'product_name', ...]
+
+df.dtypes    # [('order_id', 'int'), ('customer_id', 'string'), ...]
+
+
+```
+- .count() forces a full scan of the data. On a 100 GB dataset, this can take minutes. In production pipelines, avoid using .count() for validation unless you genuinely need the exact count. If you just need to verify the DataFrame is not empty, use df.head(1) instead — it reads only one partition.
+
+
+## Key Takeaways
+
+- Create DataFrames from lists (testing), files (production), or pandas (small reference tables only).
+- Always define schemas explicitly with `StructType` — never use `inferSchema` in production
+- Use `DecimalType` instead of `DoubleType` for financial data to avoid floating-point precision errors
+- PySpark DataFrames are **immutable** and lazily evaluated — every transformation returns a new DataFrame, and nothing executes until you call an action.
+- `.show()` and `.count()` are actions that trigger execution — use them deliberately, not casually
+- Enable Arrow (`spark.sql.execution.arrow.pyspark.enabled`) when converting between pandas and PySpark.
