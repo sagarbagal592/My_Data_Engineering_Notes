@@ -144,3 +144,96 @@ df_clean = df.withColumn(
 )
 
 ```
+
+# Deduplication
+
+- Duplicates are the second most common data quality issue. PySpark gives you two approaches: dropDuplicates and the window function dedup pattern. They are not interchangeable.
+
+## dropDuplicates: Simple, No Control
+```py
+# Remove exact duplicate rows (all columns match)
+
+df_deduped = df.dropDuplicates()
+
+# Remove duplicates based on specific columns
+
+df_deduped = df.dropDuplicates(["order_id"])
+
+```
+- dropDuplicates keeps an arbitrary row from each group of duplicates. You have no control over which row is kept. If your duplicates have different timestamps or different values in non-key columns, you cannot specify "keep the most recent one."
+
+## Window Function Dedup: Full Control
+
+```py
+from pyspark.sql.functions import row_number, col
+from pyspark.sql.window import Window
+
+dedup_window = Window.partitionBy("order_id").orderBy(
+    col("event_timestamp").desc(),
+    col("ingestion_timestamp").desc()
+)
+
+df_deduped = (
+    df
+    .withColumn("rn", row_number().over(dedup_window))
+    .filter(col("rn") == 1)
+    .drop("rn")
+)
+
+```
+- dropDuplicates vs Window Dedup: When to Use Which
+    - Use dropDuplicates only when your duplicates are exact copies — every column is identical. This is rare in production. Use the window function pattern when duplicates have different values in any column (different timestamps, different status values, different ingestion metadata). The window pattern costs more (it triggers a shuffle and sort), but it gives you deterministic control over which row survives. In production, deterministic behavior is worth the cost.
+![alt text](image-8.png)
+
+## dropDuplicates Performance Note
+- dropDuplicates uses a hash-based approach under the hood and does not require a full sort, making it faster than the window pattern. On a 1B row dataset, dropDuplicates might take 5 minutes while the window pattern takes 15 minutes. But if you need deterministic results — and in production you almost always do — the window pattern is the correct choice.
+
+# String Cleaning
+
+- Dirty strings are everywhere: leading/trailing whitespace, inconsistent casing, special characters, encoding issues. These cause silent join failures (because " Alice" does not equal "Alice") and broken aggregations (because "USA", "usa", and "U.S.A." are three different groups).
+
+```py
+from pyspark.sql.functions import trim, lower, upper, regexp_replace, initcap
+
+# The standard string cleaning chain
+df_clean = (
+    df
+    .withColumn("customer_name", trim(col("customer_name")))           # Remove whitespace
+    .withColumn("email", lower(trim(col("email"))))                     # Lowercase + trim
+    .withColumn("phone", regexp_replace(col("phone"), r"[^0-9]", ""))  # Keep only digits
+    .withColumn("country", upper(trim(col("country"))))                 # Uppercase + trim
+    .withColumn("city", initcap(trim(col("city"))))                     # Title Case
+)
+
+```
+## Common regex patterns for data cleaning
+
+- regexp_replace(column, pattern, replacement)
+
+```py
+# Remove all non-alphanumeric characters
+regexp_replace(col("text"), r"[^a-zA-Z0-9\s]", "")
+
+# Collapse multiple spaces into one
+regexp_replace(col("text"), r"\s+", " ")
+
+# Extract digits from a mixed string (e.g., "Order #12345" -> "12345")
+from pyspark.sql.functions import regexp_extract
+df.withColumn("order_num", regexp_extract(col("order_ref"), r"(\d+)", 1))
+
+# regexp_extract(column, regex, group_number)
+
+# Replace known dirty values with null
+from pyspark.sql.functions import when
+df.withColumn(
+    "email",
+    when(col("email").isin("N/A", "n/a", "null", "none", ""), None)
+    .otherwise(col("email"))
+)
+
+```
+- Clean Before You Join
+    - Always apply string cleaning before joins. A join on customer_name will fail to match " Alice Smith " with "alice smith" because of whitespace and casing differences. The five-second fix: trim(lower(col("customer_name"))) on both sides before the join. This single practice eliminates an enormous category of "missing data" bugs that are actually just dirty string bugs.
+
+
+
