@@ -4,6 +4,7 @@
 
 ## Null Handling
 - Nulls are the most common data quality issue and the most dangerous because they propagate silently. Any arithmetic on a null produces null. Any comparison with null returns null (not false). A join on a null key matches nothing. Your aggregation quietly drops null rows without warning.
+- `.isNull()` is a column level operation, it simply returns a boolean value. If the field is Non-Null then it returns False and True when field is Null.
 ## Detecting Nulls
 ```py
 from pyspark.sql.functions import col, isnan, when, count
@@ -16,6 +17,8 @@ df.select([
     count(when(col(c).isNull(), c)).alias(c)
     for c in df.columns
 ]).show()
+
+# Note: Here .count() and count() are two different things one is action while other is pyspark sql condition. Dont confuse with it.
 
 # Check for both null AND NaN (common in float columns from pandas conversions)
 df.filter(col("amount").isNull() | isnan(col("amount"))).count()
