@@ -126,7 +126,7 @@ coalesce(
 ```py
 df_clean = df.withColumn(
     "display_name",
-    coalesce(col("preferred_name"), col("full_name"), col("username"))
+    coalesce(col("preferred_name"), col("full_name"), col("username"), lit('Unknown'))
 )
 ```
 
