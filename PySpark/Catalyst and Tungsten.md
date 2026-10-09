@@ -51,3 +51,5 @@
 - UDF Warning
     - When you register a Python UDF, Catalyst treats it as a black box. It cannot push predicates through it, prune columns inside it, or reason about its output. This is the primary reason Python UDFs are 2-10x slower than built-in functions — not just the serialization overhead, but the loss of optimization opportunity.
 
+## Tungsten: The Execution Engine
+
