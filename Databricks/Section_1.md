@@ -2,14 +2,14 @@
 
 - Databricks is a managed lakehouse platform, built by Spark's original creators, that runs on top of your own cloud account.
 - Databricks does not store your data inside some proprietary Databricks database. Your data sits as files in your own cloud storage, and Databricks provides the compute, the catalog, and the workspace to process it.
-![alt text](image.png)
-![alt text](image-2.png)
+![alt text](images/image.png)
+![alt text](images/image-2.png)
 
 ## The problem: running Spark yourself was miserable
-![alt text](image-1.png)
+![alt text](images/image-1.png)
 
 ## Where it sits in the data engineering lifecycle
-![alt text](image-3.png)
+![alt text](images/image-3.png)
 
 - When someone asks "what is Databricks?", give the one-liner first: a managed lakehouse platform from the creators of Apache Spark that runs on top of your cloud account. Then show depth with two follow-up points. One, it is more than hosted Spark: Delta Lake, Unity Catalog, SQL warehouses, and MLflow are the platform pieces. Two, the data stays in the customer's own cloud storage while Databricks manages the platform, which is the architecture question that usually comes next. Avoid calling it a database or "a cloud", both are instant credibility hits.
 - Databricks is a managed lakehouse platform built by the original creators of Apache Spark. It exists because running Spark yourself meant carrying clusters, tuning, notebooks, and security on your own back. It bundles managed Spark clusters, notebooks, Delta Lake, SQL, jobs, and ML into one workspace, deploys on top of your own AWS, Azure, or GCP account (your data never leaves your storage), and serves data engineers, analysts, and data scientists on one shared copy of the data.
@@ -17,11 +17,11 @@
 # Data LakeHouse Architecture
 
 - Understand the lakehouse architecture that combines data lake flexibility with data warehouse reliability.
-![alt text](image-4.png)
+![alt text](images/image-4.png)
 
 ## What a lakehouse actually is:
 
-![alt text](image-5.png)
+![alt text](images/image-5.png)
 - At the bottom sits cloud object storage: S3, ADLS, or GCS. This is where your one copy of the data lives, at lake prices. On top of that, the data is stored as Parquet, an open, columnar file format that any engine can read.
 - The layer above is the one that changes everything: **Delta Lake**. Delta is not a database and not a server. It is a **transaction log**, a folder called **_delta_log** sitting right next to your Parquet files, recording every change as a numbered commit. That little log is what upgrades a pile of files into a real table:
     - ACID transactions: a write either fully commits or never happened. No more half-written folders.
@@ -46,7 +46,7 @@ SELECT COUNT(*) FROM sales.orders TIMESTAMP AS OF '2026-07-01';
 
 ## Where Databricks fits
 - The lakehouse is an architecture, not a product. Databricks is the company that coined the term and built the most complete implementation of it, and its pieces map cleanly onto the layers you just saw.
-![alt text](image-6.png)
+![alt text](images/image-6.png)
 - Workspace is where you work: notebooks in Python, SQL, Scala, or R, scheduled jobs for production pipelines, and a SQL editor with dashboards.
 - Databricks Runtime is the engine: Apache Spark plus Photon, a native C++ execution engine that Databricks quotes at up to 12x faster than open-source Spark on SQL workloads.
 - Delta Lake ships inside the runtime, so every table you create is a Delta table unless you go out of your way to avoid it.
