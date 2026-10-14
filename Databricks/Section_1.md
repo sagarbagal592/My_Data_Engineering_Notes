@@ -6,6 +6,7 @@
 ![alt text](images/image-2.png)
 
 ## The problem: running Spark yourself was miserable
+- It is because of three things: Scalability, Maintenance, Security
 ![alt text](images/image-1.png)
 
 ## Where it sits in the data engineering lifecycle
