@@ -79,6 +79,87 @@ DESCRIBE HISTORY employees
 - Delta Lake never edits files in place: every write adds new data files plus a new commit to the transaction log. Three operational tools fall straight out of that one design decision, and together they are the maintenance kit you will use on every serious Delta table. **Time travel** lets you query and restore old versions. **OPTIMIZE (with Z-ORDER)** keeps reads fast. **VACUUM** actually deletes old files. They are one system: time travel exists because old files stick around, OPTIMIZE adds files without removing any, and VACUUM is the only thing that ever truly deletes.
 ![alt text](image-22.png)
 
+## 2. Time travel: every version is still queryable
+- Every INSERT, UPDATE, DELETE, and MERGE on a Delta table becomes a numbered commit in `_delta_log`. Version 0 is the table's creation, and the number ticks up from there. You can see the whole trail with one command: `describe history table_name`. You get every version, its timestamp, the operation, and who ran it. This is a free audit log. Nobody set it up, nobody maintains it, it is just there.
+```sql
+-- Query by version number
+SELECT * FROM my_table VERSION AS OF 36
+
+-- Shorthand syntax
+SELECT * FROM my_table@v36
+
+-- Query by timestamp
+SELECT * FROM my_table TIMESTAMP AS OF '2024-01-01'
+
+-- Use of Restore:
+
+-- Check all versions
+DESCRIBE HISTORY employees
+
+-- Query version 1 (before updates)
+SELECT * FROM employees VERSION AS OF 1
+SELECT * FROM employees@v1
+
+-- Oops, accidentally delete everything
+DELETE FROM employees
+
+-- Table is empty
+SELECT * FROM employees
+
+-- Restore from version 5
+RESTORE TABLE employees TO VERSION AS OF 5
+
+-- Data is back!
+SELECT * FROM employees
+
+-- Check history: the restore is recorded as a new transaction
+DESCRIBE HISTORY employees
+
+
+```
+- When you update a row, Delta does not touch the old file. It writes a new file with the updated data and records two things in the log: "that old file is no longer part of the table" and "this new file is." The old file physically stays on storage. Reading version 1 just means replaying the log up to commit 1 and opening whichever files it lists. No backups, no snapshots, no copies.
+![alt text](image-14.png)
+
+- Restoring a table does not rewind history. It creates a NEW version whose data matches the old state. The DELETE and the RESTORE are both recorded in the transaction log, so the audit trail stays complete. Look back at the first diagram: v4 is a fresh commit that happens to look exactly like v2.
+
+## 2. OPTIMIZE: fixing the small files problem
+
+- `optimize table_name`
+- Every write creates new files, and small frequent writes create small frequent files. A streaming job that commits every five minutes adds around 300 files a day to your table. Run that for a month and you have close to 10,000 files, many of them just a few MB each.
+- Why is that bad? Because for every file, Spark pays a fixed overhead: open it, read its footer and stats, then close it. With 10,000 tiny files, your query spends more time on file bookkeeping than on reading actual data. Same rows, dramatically slower scans.
+- OPTIMIZE reads the small files and rewrites them into large ones, targeting roughly 1 GB per file. Your data does not change at all, only its physical layout does.
+- OPTIMIZE is itself a Delta transaction, so it follows the same copy-on-write rule as everything else. It writes new compacted files, commits a new version, and marks the small files as removed in the log.
+![alt text](image-15.png)
+
+## Z-ORDER: make data skipping actually skip
+
+- Compaction fixes the file count. Z-ORDER fixes something sneakier: which file your data lives in.
+- Delta keeps min and max statistics for each column in every file. When you run WHERE customer_id = 42, Delta checks those stats and skips any file whose range cannot contain 42. This is called data skipping, and it is one of the cheapest performance wins in the lakehouse. But there is a catch: if customer 42's rows are smeared across every file (which is what naturally happens when data arrives in time order), every file's min/max range covers 42, and nothing gets skipped. Z-ORDER solves it by physically colocating related values into the same files:
+```sql
+OPTIMIZE employees
+ZORDER BY (id)
+
+```
+![alt text](image-16.png)
+
+## 3. VACUUM: the only thing that actually deletes
+
+- Let us add up what we have so far. Updates leave old files behind. Deletes leave old files behind. OPTIMIZE leaves the entire pre-compaction file set behind. A busy table can easily carry several times its live size in dead files, and on a big table that is real storage money.
+- `VACUUM` is the cleanup crew. It deletes files that meet two conditions at once: they are no longer referenced by the current table version, and they are older than the retention period (7 days by default).
+```sql
+-- Preview what would be deleted (always do this first)
+VACUUM employees DRY RUN
+
+-- Remove unreferenced files older than the default retention (7 days)
+VACUUM employees
+
+```
+## The trade-off: retention vs time travel
+- The question that separates people who have run Delta in production from people who have read about it is: "why does VACUUM break time travel?" The strong answer connects the design: Delta never edits files in place, so an old version is just old files plus the log entries that reference them. VACUUM deletes unreferenced files past the retention window, so any version that needed those files is unrecoverable. Two follow-ups to be ready for: OPTIMIZE does not free storage (it writes new files and only VACUUM deletes), and Z-ORDER helps because tight per-file min/max ranges let data skipping prune files. If you can say "our time travel horizon equals our VACUUM retention," you sound like someone who has operated this.
+
+
+- Key Takeaway
+    - Delta's maintenance trio all comes from one design decision: files are never edited, only added, and the log decides which ones count. Time travel queries or restores any past version because the old files still exist. OPTIMIZE compacts thousands of small files into roughly 1 GB files, and ZORDER BY your main filter column makes data skipping effective. VACUUM is the only command that actually deletes, and its retention window (7 days by default) is exactly how far back you can time travel. OPTIMIZE often, VACUUM weekly, and think hard before shortening retention.
 
 
 # Delta Tables from Files

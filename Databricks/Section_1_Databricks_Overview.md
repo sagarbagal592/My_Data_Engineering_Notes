@@ -5,6 +5,9 @@
 ![alt text](image.png)
 ![alt text](image-2.png)
 
+## Data Architecture Transitions
+![alt text](image-17.png)
+
 ## The problem: running Spark yourself was miserable
 - It is because of three things: Scalability, Maintenance, Security
 ![alt text](image-1.png)
