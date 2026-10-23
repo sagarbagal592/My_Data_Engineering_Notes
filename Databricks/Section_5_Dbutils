@@ -1,0 +1,1522 @@
+# DBUtils in Databricks — Complete Detailed Explanation
+
+## 1. What is DBUtils in Databricks?
+
+**DBUtils (Databricks Utilities)** is a collection of built-in utility functions that help you perform common tasks in a Databricks notebook.
+
+Using DBUtils, you can manage files, access secrets, pass parameters to notebooks, execute one notebook from another, and share values between tasks in a Databricks job.
+
+In simple terms, **DBUtils provides ready-made functions to interact with the Databricks environment without having to write all the supporting code yourself.**
+
+According to the official Databricks documentation, DBUtils is available in Python, Scala, and R notebooks, although individual utilities and commands can have language-specific limitations.
+
+Official documentation: https://docs.databricks.com/aws/en/dev-tools/databricks-utils
+
+### Example
+
+Suppose you are working on a data engineering project in Databricks.
+
+You need to:
+1. Read files from cloud storage.
+2. Check which files are available.
+3. Access database credentials securely.
+4. Pass a date parameter to a notebook.
+5. Execute another notebook.
+6. Pass the output from one task to another.
+
+DBUtils provides functions to help with these operations.
+
+For example:
+
+```python
+# List files
+dbutils.fs.ls("/Volumes/main/default/my_volume/")
+
+# Read a secret
+dbutils.secrets.get(
+    scope="my_scope",
+    key="database_password"
+)
+
+# Create a widget
+dbutils.widgets.text("run_date", "2026-10-23")
+
+# Get a widget value
+run_date = dbutils.widgets.get("run_date")
+
+# Execute another notebook
+dbutils.notebook.run(
+    "/Shared/child_notebook",
+    60,
+    {"run_date": run_date}
+)
+```
+
+These examples illustrate four commonly used DBUtils modules: `fs`, `secrets`, `widgets`, and `notebook`.
+
+---
+
+# 2. Different DBUtils Modules
+
+The principal DBUtils modules include the following:
+
+| Module | Purpose | Commonly used functions |
+|---|---|---|
+| `dbutils.fs` | File management | `ls()`, `mkdirs()`, `cp()`, `mv()`, `rm()` |
+| `dbutils.secrets` | Access secrets | `get()`, `getBytes()`, `list()`, `listScopes()` |
+| `dbutils.widgets` | Accept notebook parameters | `text()`, `dropdown()`, `combobox()`, `get()` |
+| `dbutils.notebook` | Execute notebooks and return values | `run()`, `exit()` |
+| `dbutils.jobs.taskValues` | Share values between tasks in a job | `set()`, `get()` |
+| `dbutils.data` | Summarize datasets | `summarize()` |
+| `dbutils.library` | Legacy library management | Some methods are deprecated |
+
+The exact utilities available depend on the Databricks environment and runtime. For example, `dbutils.jobs.taskValues` is Python-only, and `dbutils.data.summarize()` is documented as a preview feature.
+
+**Important:** You don't need to import DBUtils manually in a standard Databricks notebook. The `dbutils` object is generally provided by the notebook environment.
+
+Let's explore the most important modules with practical examples.
+
+---
+
+# 3. DBUtils File System (`dbutils.fs`)
+
+## What is `dbutils.fs`?
+
+`dbutils.fs` provides functions to work with files and directories accessible through the Databricks filesystem interface.
+
+As a data engineer, you might need to:
+- List available files.
+- Check whether a directory contains data.
+- Create directories.
+- Copy files.
+- Move files.
+- Remove files.
+- Read a small portion of a file.
+- Write a small text file.
+
+The `dbutils.fs` module provides functions for these tasks.
+
+### 3.1 `dbutils.fs.ls()`
+
+**Purpose:** Lists the files and directories inside a specified location.
+
+Example:
+
+```python
+files = dbutils.fs.ls("/Volumes/main/default/my_volume/")
+
+display(files)
+```
+
+Suppose the directory contains:
+
+```text
+/Volumes/main/default/my_volume/
+    customers.csv
+    orders.csv
+    products.csv
+```
+
+The function returns information about the entries, including their paths, names, sizes, and directory status.
+
+You can also loop through the returned entries:
+
+```python
+files = dbutils.fs.ls("/Volumes/main/default/my_volume/")
+
+for file in files:
+    print(file.name, file.size, file.path)
+```
+
+**Real-world use case:** Before processing files, you want to verify which input files are available in your landing directory.
+
+---
+
+### 3.2 `dbutils.fs.mkdirs()`
+
+**Purpose:** Creates a directory and any required parent directories.
+
+Example:
+
+```python
+dbutils.fs.mkdirs("/Volumes/main/default/my_volume/processed/")
+```
+
+If the directory doesn't exist, Databricks attempts to create it.
+
+For example, your project might organize files into the following structure:
+
+```text
+data/
+    raw/
+    processed/
+    archive/
+```
+
+You can create each directory using:
+
+```python
+dbutils.fs.mkdirs("/Volumes/main/default/my_volume/raw/")
+dbutils.fs.mkdirs("/Volumes/main/default/my_volume/processed/")
+dbutils.fs.mkdirs("/Volumes/main/default/my_volume/archive/")
+```
+
+**Real-world use case:** Create output directories before writing processed data.
+
+---
+
+### 3.3 `dbutils.fs.cp()`
+
+**Purpose:** Copies a file or directory from one location to another.
+
+Syntax:
+
+```python
+dbutils.fs.cp(source, destination, recurse=False)
+```
+
+Example:
+
+```python
+dbutils.fs.cp(
+    "/Volumes/main/default/my_volume/customers.csv",
+    "/Volumes/main/default/my_volume/backup/customers.csv"
+)
+```
+
+This copies `customers.csv` to the backup location.
+
+To copy a directory and its contents recursively:
+
+```python
+dbutils.fs.cp(
+    "/Volumes/main/default/my_volume/raw/",
+    "/Volumes/main/default/my_volume/backup/",
+    True
+)
+```
+
+The third argument, `True`, enables recursive copying.
+
+**Real-world use case:** Copy raw files to an archive or backup directory before processing them.
+
+---
+
+### 3.4 `dbutils.fs.mv()`
+
+**Purpose:** Moves a file or directory from one location to another.
+
+Example:
+
+```python
+dbutils.fs.mv(
+    "/Volumes/main/default/my_volume/raw/customers.csv",
+    "/Volumes/main/default/my_volume/processed/customers.csv"
+)
+```
+
+This moves the file to the destination.
+
+The important distinction is:
+
+- `cp()` copies the source.
+- `mv()` moves the source.
+
+The original file normally remains after a copy but is no longer at its original location after a successful move.
+
+**Real-world use case:** Move successfully processed files into an archive or completed-data directory.
+
+**Note:** Cloud-storage moves can be implemented as copy-and-delete operations, so they should not automatically be treated as atomic transactions.
+
+---
+
+### 3.5 `dbutils.fs.rm()`
+
+**Purpose:** Deletes a file or directory.
+
+Example:
+
+```python
+dbutils.fs.rm(
+    "/Volumes/main/default/my_volume/old_file.csv"
+)
+```
+
+To delete a directory and its contents:
+
+```python
+dbutils.fs.rm(
+    "/Volumes/main/default/my_volume/old_data/",
+    True
+)
+```
+
+The second argument enables recursive deletion.
+
+**Real-world use case:** Remove temporary files after a successful processing run.
+
+**Important:** Recursive deletion can permanently remove a large amount of data. Verify the target path before running this command.
+
+---
+
+### 3.6 `dbutils.fs.head()`
+
+**Purpose:** Reads the first specified number of bytes from a file and returns the content as a string.
+
+Example:
+
+```python
+content = dbutils.fs.head(
+    "/Volumes/main/default/my_volume/customers.txt",
+    1000
+)
+
+print(content)
+```
+
+This retrieves up to the first 1,000 bytes.
+
+It is useful for inspecting a small text file without loading the entire file into memory.
+
+**Real-world use case:** Quickly inspect a configuration file, text file, or sample of a small CSV file.
+
+Remember that this function reads bytes, not a specified number of rows.
+
+---
+
+### 3.7 `dbutils.fs.put()`
+
+**Purpose:** Writes a string into a file.
+
+Example:
+
+```python
+dbutils.fs.put(
+    "/Volumes/main/default/my_volume/status.txt",
+    "Data processing completed successfully",
+    True
+)
+```
+
+The third argument enables overwriting an existing file.
+
+**Real-world use case:** Write a small status message or text-based configuration file.
+
+For large datasets, use Spark DataFrame write operations rather than writing the data through `dbutils.fs.put()`.
+
+---
+
+### Summary of File System Functions
+
+| Function | Description |
+|---|---|
+| `dbutils.fs.ls()` | Lists files and directories |
+| `dbutils.fs.mkdirs()` | Creates directories |
+| `dbutils.fs.cp()` | Copies files or directories |
+| `dbutils.fs.mv()` | Moves files or directories |
+| `dbutils.fs.rm()` | Removes files or directories |
+| `dbutils.fs.head()` | Reads the first specified number of bytes |
+| `dbutils.fs.put()` | Writes a string to a file |
+| `dbutils.fs.help()` | Displays help for filesystem utilities |
+
+These functions are documented in the official [Databricks Utilities reference](https://docs.databricks.com/aws/en/dev-tools/databricks-utils).
+
+### Important distinction: DBUtils versus Spark file reading
+
+Consider the following examples.
+
+Using DBUtils:
+
+```python
+dbutils.fs.ls("/Volumes/main/default/my_volume/")
+```
+
+This lists the available files.
+
+Using Spark:
+
+```python
+df = spark.read.csv(
+    "/Volumes/main/default/my_volume/customers.csv",
+    header=True,
+    inferSchema=True
+)
+
+display(df)
+```
+
+This reads the CSV data into a Spark DataFrame.
+
+**Remember: `dbutils.fs` is useful for file management, while Spark is generally the appropriate tool for processing large datasets.**
+
+---
+
+# 4. DBUtils Secrets (`dbutils.secrets`)
+
+## What is `dbutils.secrets`?
+
+`dbutils.secrets` allows notebooks to retrieve sensitive values stored in Databricks secret scopes.
+
+Examples of sensitive values include:
+- Database passwords.
+- API tokens.
+- Service credentials.
+- Connection strings containing passwords.
+
+You should avoid hardcoding sensitive information directly in notebook code.
+
+### Why do we need secrets?
+
+Consider this example:
+
+```python
+password = "MyDatabasePassword123"
+```
+
+This is not a good practice because the password may be exposed through source code, notebook history, or other places where the code is shared.
+
+Instead, store the password in a secret scope and retrieve it when needed.
+
+### 4.1 `dbutils.secrets.listScopes()`
+
+**Purpose:** Lists the secret scopes available to the current user or execution context.
+
+Example:
+
+```python
+dbutils.secrets.listScopes()
+```
+
+Possible output:
+
+```text
+[SecretScope(name='project_scope')]
+```
+
+A secret scope is a named collection or access boundary for secrets.
+
+### 4.2 `dbutils.secrets.list()`
+
+**Purpose:** Lists secret metadata associated with a specified scope.
+
+Example:
+
+```python
+dbutils.secrets.list("project_scope")
+```
+
+This can return the names of the secrets in the scope.
+
+It does not return the actual secret values.
+
+### 4.3 `dbutils.secrets.get()`
+
+**Purpose:** Retrieves a secret as a string.
+
+Syntax:
+
+```python
+dbutils.secrets.get(scope, key)
+```
+
+Example:
+
+```python
+database_password = dbutils.secrets.get(
+    scope="project_scope",
+    key="database_password"
+)
+```
+
+Here:
+- `project_scope` is the secret scope.
+- `database_password` is the secret key.
+- The returned value is assigned to a Python variable.
+
+You can then use the variable when configuring a database connection.
+
+For example:
+
+```python
+jdbc_url = "jdbc:postgresql://db.example.com:5432/sales"
+
+connection_properties = {
+    "user": "data_user",
+    "password": database_password,
+    "driver": "org.postgresql.Driver"
+}
+```
+
+This example illustrates how a retrieved secret can be used in JDBC connection properties. You would still need to configure the connection and ensure that the appropriate JDBC driver is available.
+
+### 4.4 `dbutils.secrets.getBytes()`
+
+**Purpose:** Retrieves a secret as bytes instead of a string.
+
+Example:
+
+```python
+secret_bytes = dbutils.secrets.getBytes(
+    scope="project_scope",
+    key="certificate"
+)
+```
+
+This is useful when a credential or secret must be handled as binary data.
+
+### Security considerations
+
+There are several important points to remember:
+
+1. Never hardcode passwords or API tokens in notebooks.
+2. Restrict secret-scope permissions to authorized users and workloads.
+3. Avoid printing secret values.
+4. Be careful when passing secrets to external systems or logging them.
+5. Remember that secret redaction is not a substitute for proper access control.
+
+**Important:** A secret is not automatically safe simply because you retrieved it using `dbutils.secrets.get()`. Anyone who can execute code with sufficient access may be able to use the secret.
+
+For additional details, refer to the official [Databricks secret management documentation](https://docs.databricks.com/aws/en/security/secrets/).
+
+---
+
+# 5. DBUtils Widgets (`dbutils.widgets`)
+
+## What are widgets?
+
+Widgets allow you to pass parameters into a Databricks notebook.
+
+For example, suppose you have a data pipeline that processes sales data.
+
+Sometimes you want to process:
+- Data for one particular date.
+- Data for a particular country.
+- Data for a specific environment.
+- Data for a particular customer.
+
+Instead of modifying the code every time, you can create widgets and provide the required values when running the notebook.
+
+**The main purpose of widgets is to make notebooks reusable and parameter-driven.**
+
+Databricks provides text, dropdown, combobox, and other widget functionality.
+
+## 5.1 `dbutils.widgets.text()`
+
+Creates a text input widget.
+
+Syntax:
+
+```python
+dbutils.widgets.text(name, defaultValue, label)
+```
+
+Example:
+
+```python
+dbutils.widgets.text(
+    "run_date",
+    "2026-10-23",
+    "Processing Date"
+)
+```
+
+This creates a widget named `run_date`, with a default value of `2026-10-23` and a displayed label of `Processing Date`.
+
+You can retrieve the value using:
+
+```python
+run_date = dbutils.widgets.get("run_date")
+
+print(run_date)
+```
+
+Possible output:
+
+```text
+2026-10-23
+```
+
+Notice that widget values are strings. Convert the value to a date or number when your processing logic requires another data type.
+
+### Practical example
+
+Suppose you want to process records for a particular date.
+
+```python
+from pyspark.sql.functions import col, to_date
+
+dbutils.widgets.text(
+    "run_date",
+    "2026-10-23",
+    "Processing Date"
+)
+
+run_date = dbutils.widgets.get("run_date")
+
+df = spark.read.table("main.sales.orders")
+
+filtered_df = df.filter(
+    to_date(col("order_date")) == run_date
+)
+
+display(filtered_df)
+```
+
+This example reads the `main.sales.orders` table and filters records based on the date supplied through the widget.
+
+The example assumes that `order_date` is compatible with the date conversion and that the table exists.
+
+**Real-world use case:** Run the same notebook every day with a different processing date.
+
+---
+
+## 5.2 `dbutils.widgets.dropdown()`
+
+Creates a dropdown widget containing predefined choices.
+
+Example:
+
+```python
+dbutils.widgets.dropdown(
+    "environment",
+    "dev",
+    ["dev", "test", "prod"],
+    "Select Environment"
+)
+```
+
+Retrieve the selected value:
+
+```python
+environment = dbutils.widgets.get("environment")
+
+print(environment)
+```
+
+Possible output:
+
+```text
+prod
+```
+
+The output depends on the value selected by the user or supplied by the job.
+
+### When should you use a dropdown?
+
+Use a dropdown when the user should select from a fixed list of valid options.
+
+Examples include:
+- Environment: `dev`, `test`, `prod`.
+- Region: `India`, `US`, `Europe`.
+- Data source: `sales`, `inventory`, `customers`.
+
+It reduces errors caused by manually entering invalid values.
+
+---
+
+## 5.3 `dbutils.widgets.combobox()`
+
+A combobox allows the user to choose from predefined options or enter a value, depending on the widget interface.
+
+Example:
+
+```python
+dbutils.widgets.combobox(
+    "country",
+    "India",
+    ["India", "USA", "UK"],
+    "Select or Enter Country"
+)
+```
+
+Retrieve the selected value:
+
+```python
+country = dbutils.widgets.get("country")
+```
+
+Use a combobox when predefined options are helpful but users may also need to enter another value.
+
+---
+
+## 5.4 `dbutils.widgets.get()`
+
+Retrieves the current value of a widget.
+
+Example:
+
+```python
+dbutils.widgets.text("table_name", "customers")
+
+table_name = dbutils.widgets.get("table_name")
+
+print(table_name)
+```
+
+Possible output:
+
+```text
+customers
+```
+
+You can use the retrieved value in your processing logic.
+
+For example:
+
+```python
+table_name = dbutils.widgets.get("table_name")
+
+df = spark.read.table(f"main.sales.{table_name}")
+
+display(df)
+```
+
+In production, validate table names and use appropriate identifier-handling practices rather than allowing untrusted widget input to determine arbitrary SQL identifiers.
+
+---
+
+## 5.5 `dbutils.widgets.remove()` and `removeAll()`
+
+These commands remove widgets.
+
+Remove one widget:
+
+```python
+dbutils.widgets.remove("run_date")
+```
+
+Remove all widgets:
+
+```python
+dbutils.widgets.removeAll()
+```
+
+Be careful when removing widgets because other cells may depend on their values.
+
+### Widget functions summary
+
+| Function | Purpose |
+|---|---|
+| `text()` | Creates a text input |
+| `dropdown()` | Creates a dropdown |
+| `combobox()` | Creates a combobox |
+| `get()` | Retrieves a widget value |
+| `remove()` | Removes a widget |
+| `removeAll()` | Removes all widgets |
+
+### Widgets versus hardcoded values
+
+Without widgets:
+
+```python
+run_date = "2026-10-23"
+```
+
+You must modify the notebook code to change the date.
+
+With widgets:
+
+```python
+dbutils.widgets.text("run_date", "2026-10-23")
+
+run_date = dbutils.widgets.get("run_date")
+```
+
+You can change the parameter without changing the processing logic.
+
+This is especially helpful when scheduling notebooks through Databricks Jobs.
+
+---
+
+# 6. DBUtils Notebook (`dbutils.notebook`)
+
+## What is `dbutils.notebook`?
+
+The notebook utility helps you control notebook execution.
+
+It provides two particularly important functions:
+
+- `dbutils.notebook.run()`
+- `dbutils.notebook.exit()`
+
+These functions are commonly used when one notebook needs to execute another notebook and receive its return value.
+
+Let's understand both.
+
+## 6.1 `dbutils.notebook.run()`
+
+**Purpose:** Executes another notebook and returns the value supplied by that notebook's `dbutils.notebook.exit()` call.
+
+Syntax:
+
+```python
+dbutils.notebook.run(
+    path,
+    timeout_seconds,
+    arguments
+)
+```
+
+The arguments are:
+- `path`: The path of the notebook to execute.
+- `timeout_seconds`: The maximum time to wait for the notebook to finish.
+- `arguments`: A dictionary containing parameter names and values.
+
+### Practical example
+
+Suppose you have two notebooks.
+
+**Parent notebook:** `main_notebook`
+
+**Child notebook:** `child_notebook`
+
+The parent notebook needs to execute the child notebook and pass it a parameter.
+
+### Step 1: Create the child notebook
+
+In `child_notebook`, write:
+
+```python
+dbutils.widgets.text("name", "Unknown")
+
+name = dbutils.widgets.get("name")
+
+print(f"Hello, {name}!")
+
+dbutils.notebook.exit(f"Processed user: {name}")
+```
+
+What happens here?
+
+1. A widget named `name` is created.
+2. The widget value is retrieved.
+3. A message is printed.
+4. The notebook exits and returns a string.
+
+### Step 2: Execute the child notebook from the parent
+
+In `main_notebook`, write:
+
+```python
+result = dbutils.notebook.run(
+    "/Shared/child_notebook",
+    60,
+    {"name": "Rahul"}
+)
+
+print(result)
+```
+
+Possible output:
+
+```text
+Processed user: Rahul
+```
+
+Here is the execution flow:
+
+```text
+Parent Notebook
+      |
+      | Passes name = "Rahul"
+      v
+Child Notebook
+      |
+      | Reads the parameter
+      | Processes the data
+      | Calls dbutils.notebook.exit()
+      v
+Parent Notebook
+      |
+      | Receives the returned string
+      v
+Prints the result
+```
+
+The path `/Shared/child_notebook` is an example. Replace it with the actual path of your child notebook.
+
+### Important points about `dbutils.notebook.run()`
+
+1. The child notebook runs in the current cluster.
+2. The timeout determines how long the caller waits for execution to finish.
+3. The returned value is a string.
+4. The child notebook can receive parameters through its widgets.
+5. A failure in the child notebook can cause the parent call to fail.
+6. The documented maximum length of the returned string is 5 MB.
+
+### When should you use `dbutils.notebook.run()`?
+
+Consider a data engineering pipeline with three stages:
+
+```text
+Notebook 1: Extract Data
+        |
+        v
+Notebook 2: Transform Data
+        |
+        v
+Notebook 3: Load Data
+```
+
+You could use notebook calls to orchestrate these stages.
+
+However, for production workflows, **Databricks Workflows (Jobs) with separate tasks and dependencies are often preferable to chaining many notebooks with `dbutils.notebook.run()`**. Jobs provide orchestration features such as task dependencies, retries, and task-level monitoring.
+
+---
+
+## 6.2 `dbutils.notebook.exit()`
+
+**Purpose:** Terminates the current notebook execution and provides a return value to the caller.
+
+Example:
+
+```python
+dbutils.notebook.exit("SUCCESS")
+```
+
+If another notebook called this notebook using `dbutils.notebook.run()`, the calling notebook receives:
+
+```text
+SUCCESS
+```
+
+You can return a status message:
+
+```python
+status = "SUCCESS"
+
+dbutils.notebook.exit(status)
+```
+
+You can also return a count:
+
+```python
+processed_records = 1000
+
+dbutils.notebook.exit(str(processed_records))
+```
+
+The result is the string `"1000"`, not the integer `1000`.
+
+### Returning JSON
+
+Sometimes you want to return multiple values.
+
+You can serialize a dictionary as JSON:
+
+```python
+import json
+
+result = {
+    "status": "SUCCESS",
+    "records_processed": 1000,
+    "source": "customers"
+}
+
+dbutils.notebook.exit(json.dumps(result))
+```
+
+The parent notebook can parse the returned value:
+
+```python
+import json
+
+result = dbutils.notebook.run(
+    "/Shared/child_notebook",
+    120,
+    {}
+)
+
+result_dict = json.loads(result)
+
+print(result_dict["status"])
+print(result_dict["records_processed"])
+```
+
+This is useful when the parent notebook needs to know how much data was processed or whether a processing stage succeeded.
+
+**Important:** `dbutils.notebook.exit()` ends notebook execution, so statements after that call are not executed as part of the normal notebook flow. Also, a background streaming query may continue running after the exit call until the query is stopped or otherwise terminates.
+
+---
+
+# 7. DBUtils Jobs Task Values (`dbutils.jobs.taskValues`)
+
+## What are task values?
+
+Task values allow one task in a Databricks Job to share a value with another task in the same job run.
+
+This is particularly useful when your workflow contains multiple dependent tasks.
+
+For example:
+
+```text
+Task 1: Ingest Data
+       |
+       | Records processed = 5000
+       v
+Task 2: Validate Data
+       |
+       | Reads the record count
+       v
+Task 3: Generate Report
+```
+
+Task values allow the first task to publish a value that a downstream task can retrieve.
+
+This differs from notebook exit values: task values are designed for communication between tasks within a job run.
+
+The `dbutils.jobs.taskValues` API is documented for Python.
+
+## 7.1 `dbutils.jobs.taskValues.set()`
+
+Sets a value for the current task.
+
+Example:
+
+```python
+dbutils.jobs.taskValues.set(
+    key="records_processed",
+    value=5000
+)
+```
+
+The task publishes the value under the key `records_processed`.
+
+You can also publish a string:
+
+```python
+dbutils.jobs.taskValues.set(
+    key="processing_status",
+    value="SUCCESS"
+)
+```
+
+### Practical example: Task 1
+
+Suppose the first task processes customer records.
+
+```python
+df = spark.read.table("main.sales.customers")
+
+record_count = df.count()
+
+dbutils.jobs.taskValues.set(
+    key="customer_count",
+    value=record_count
+)
+```
+
+This publishes the number of customer records processed by the task.
+
+## 7.2 `dbutils.jobs.taskValues.get()`
+
+Retrieves a value published by a task.
+
+Example:
+
+```python
+customer_count = dbutils.jobs.taskValues.get(
+    taskKey="ingest_customers",
+    key="customer_count",
+    default=0,
+    debugValue=0
+)
+
+print(customer_count)
+```
+
+Here:
+- `taskKey` identifies the upstream task.
+- `key` identifies the value published by that task.
+- `default` specifies the fallback value if the key is not found and a default is configured.
+- `debugValue` can provide a value when testing interactively outside a job run.
+
+The upstream task must publish the value, and the job must be configured appropriately for the dependent task to retrieve it.
+
+### When should you use task values?
+
+Use them to pass small pieces of information between job tasks, such as:
+- Number of records processed.
+- File names.
+- Processing status.
+- Batch identifiers.
+- Validation results.
+
+Do not use task values to transfer large datasets. Store large datasets in tables or files and pass their identifiers or locations instead.
+
+---
+
+# 8. DBUtils Data (`dbutils.data`)
+
+The `dbutils.data` module provides functionality for summarizing datasets.
+
+Its commonly documented function is:
+
+```python
+dbutils.data.summarize()
+```
+
+This function can analyze a Spark DataFrame or pandas DataFrame and display summary statistics.
+
+### Example
+
+```python
+df = spark.read.table("main.sales.customers")
+
+dbutils.data.summarize(df)
+```
+
+This can help you explore the dataset and understand its characteristics.
+
+You can also use:
+
+```python
+dbutils.data.summarize(df, precise=True)
+```
+
+The `precise` argument controls the precision mode for the summary.
+
+### What can this help you understand?
+
+Dataset summaries can help you investigate:
+- Column statistics.
+- Numeric distributions.
+- Missing values and data quality.
+- The general characteristics of a dataset.
+
+**Important:** The `dbutils.data.summarize()` feature is documented as a preview feature, and its exact behavior and availability can vary by environment. It analyzes the DataFrame contents, so consider the cost of examining a large dataset.
+
+For production data-quality checks, you may prefer explicit Spark operations that calculate exactly the metrics your pipeline requires.
+
+---
+
+# 9. DBUtils Library (`dbutils.library`)
+
+The library utility is used for managing libraries in certain legacy notebook workflows.
+
+Historically, it included functions for tasks such as installing libraries and restarting the Python process.
+
+However, **most methods in `dbutils.library` are deprecated**.
+
+Databricks recommends using supported library-management approaches instead.
+
+For example, libraries can be managed through:
+- Compute configuration.
+- Notebook-scoped library mechanisms where supported.
+- Job configuration.
+- Supported package-management workflows.
+
+In some situations, you may still encounter:
+
+```python
+dbutils.library.restartPython()
+```
+
+This restarts the Python process, which may be necessary after certain library changes.
+
+Use this command only when appropriate for your environment, because restarting Python can clear Python variables and other in-memory state.
+
+Refer to the official [Databricks Utilities documentation](https://docs.databricks.com/aws/en/dev-tools/databricks-utils) for the current limitations and supported alternatives.
+
+---
+
+# 10. Complete Real-World Example: Using DBUtils in a Data Pipeline
+
+Now let's combine several DBUtils modules in a practical data engineering example.
+
+### Scenario
+
+You receive daily customer CSV files.
+
+Your requirements are:
+
+1. Accept a processing date through a widget.
+2. List the files in the input directory.
+3. Read the customer data.
+4. Filter records using the selected date.
+5. Write the processed data to a Delta table.
+6. Publish the number of processed records as a task value.
+
+### Example code
+
+```python
+from pyspark.sql.functions import col, to_date
+
+# --------------------------------------------------
+# Step 1: Define a widget for the processing date
+# --------------------------------------------------
+
+dbutils.widgets.text(
+    "run_date",
+    "2026-10-23",
+    "Processing Date"
+)
+
+run_date = dbutils.widgets.get("run_date")
+
+
+# --------------------------------------------------
+# Step 2: Define input and output locations
+# --------------------------------------------------
+
+input_path = "/Volumes/main/default/landing/customers/"
+output_table = "main.sales.processed_customers"
+
+
+# --------------------------------------------------
+# Step 3: List input files
+# --------------------------------------------------
+
+files = dbutils.fs.ls(input_path)
+
+print("Files available for processing:")
+
+for file in files:
+    print(file.name)
+
+
+# --------------------------------------------------
+# Step 4: Read the input data
+# --------------------------------------------------
+
+df = spark.read.format("csv") \
+    .option("header", True) \
+    .option("inferSchema", True) \
+    .load(input_path)
+
+
+# --------------------------------------------------
+# Step 5: Filter the data
+# --------------------------------------------------
+
+filtered_df = df.filter(
+    to_date(col("created_date")) == run_date
+)
+
+
+# --------------------------------------------------
+# Step 6: Count processed records
+# --------------------------------------------------
+
+record_count = filtered_df.count()
+
+print(f"Records processed: {record_count}")
+
+
+# --------------------------------------------------
+# Step 7: Write the output to a Delta table
+# --------------------------------------------------
+
+filtered_df.write \
+    .format("delta") \
+    .mode("append") \
+    .saveAsTable(output_table)
+
+
+# --------------------------------------------------
+# Step 8: Publish the count as a task value
+# --------------------------------------------------
+
+dbutils.jobs.taskValues.set(
+    key="records_processed",
+    value=record_count
+)
+
+
+# --------------------------------------------------
+# Step 9: Return a completion message
+# --------------------------------------------------
+
+dbutils.notebook.exit(
+    f"SUCCESS: Processed {record_count} records for {run_date}"
+)
+```
+
+### How the example works
+
+| Step | DBUtils or Spark function | Purpose |
+|---|---|---|
+| 1 | `dbutils.widgets.text()` | Creates a processing-date parameter |
+| 2 | Python variables | Defines input and output locations |
+| 3 | `dbutils.fs.ls()` | Lists input files |
+| 4 | `spark.read` | Loads CSV data |
+| 5 | Spark DataFrame filtering | Filters data for the specified date |
+| 6 | `filtered_df.count()` | Counts matching records |
+| 7 | Spark DataFrame writer | Saves the output as a Delta table |
+| 8 | `dbutils.jobs.taskValues.set()` | Publishes the record count |
+| 9 | `dbutils.notebook.exit()` | Returns a completion message |
+
+### Important considerations
+
+This is an illustrative pipeline rather than a fully production-hardened implementation.
+
+Before using it in production:
+
+- Confirm that the input directory contains only the intended files.
+- Validate the processing-date parameter.
+- Confirm that `created_date` exists and has the expected format.
+- Decide whether the output should append, overwrite, or use an idempotent merge strategy.
+- Ensure that the destination table exists or that your table-creation approach is appropriate.
+- Configure the task-value behavior in the context of a Databricks Job.
+- Consider whether `count()` introduces an extra Spark computation.
+- Add logging, error handling, and data-quality checks.
+
+Also, `dbutils.notebook.exit()` terminates notebook execution, so it should be used after all necessary processing and task-value publishing are complete.
+
+---
+
+# 11. Difference Between DBUtils and Spark
+
+This is a common point of confusion for beginners.
+
+DBUtils and Spark serve different purposes.
+
+| Feature | DBUtils | Spark |
+|---|---|---|
+| Main purpose | Databricks environment utilities | Distributed data processing |
+| List files | `dbutils.fs.ls()` | Filesystem APIs or other supported methods |
+| Read CSV into a DataFrame | Not its primary purpose | `spark.read.csv()` |
+| Transform millions of records | Not its primary purpose | Spark DataFrame operations |
+| Store credentials | `dbutils.secrets.get()` can retrieve secrets | Spark can use retrieved credentials where needed |
+| Create notebook parameters | `dbutils.widgets` | Not a direct Spark responsibility |
+| Execute another notebook | `dbutils.notebook.run()` | Not a core Spark DataFrame function |
+| Share job-task values | `dbutils.jobs.taskValues` | Not a core Spark DataFrame function |
+| Write Delta tables | Not its primary purpose | DataFrame writer or Delta APIs |
+
+### Example: File listing versus data processing
+
+DBUtils:
+
+```python
+dbutils.fs.ls("/Volumes/main/default/landing/")
+```
+
+This lists the contents of a directory.
+
+Spark:
+
+```python
+df = spark.read.format("delta").table("main.sales.orders")
+
+result = df.groupBy("country").count()
+
+display(result)
+```
+
+This reads data, performs a distributed aggregation, and displays the results.
+
+**A useful rule of thumb: use DBUtils to interact with the Databricks environment and Spark to process data.**
+
+---
+
+# 12. Difference Between DBUtils and Databricks Magic Commands
+
+Databricks notebooks also provide special commands called magic commands.
+
+Examples include:
+- `%fs`
+- `%sh`
+- `%sql`
+- `%python`
+
+These are not the same as DBUtils.
+
+### Example 1: Listing files using DBUtils
+
+```python
+dbutils.fs.ls("/Volumes/main/default/my_volume/")
+```
+
+### Example 2: Listing files using `%fs`
+
+```text
+%fs ls /Volumes/main/default/my_volume/
+```
+
+The `%fs` command provides a convenient notebook interface for filesystem operations.
+
+### Example 3: Running shell commands
+
+```text
+%sh
+ls
+```
+
+This runs a shell command in the supported notebook environment.
+
+The important distinction is that DBUtils is a utility API, whereas magic commands provide notebook-specific syntax for running operations.
+
+The available commands and supported filesystem locations can vary by environment.
+
+---
+
+# 13. Important Limitations of DBUtils
+
+Before using DBUtils in a project, keep the following limitations in mind.
+
+### 1. Environment compatibility
+
+DBUtils availability depends on the compute environment and supported runtime.
+
+The current documentation notes that the documented utilities support compute environments using DBFS. Check the documentation for your specific cloud platform and compute configuration before relying on a particular command.
+
+Official documentation: https://docs.databricks.com/aws/en/dev-tools/databricks-utils
+
+### 2. Not all commands are available in every language
+
+DBUtils is available in Python, Scala, and R notebooks, but some utilities are language-specific.
+
+For example, `dbutils.jobs.taskValues` is documented as Python-only.
+
+### 3. Not all functions are recommended for new development
+
+Some functionality, especially in `dbutils.library`, is deprecated.
+
+Use currently supported library and workflow-management approaches when developing new projects.
+
+### 4. File operations can be destructive
+
+Functions such as `dbutils.fs.rm()` can delete files and directories.
+
+Always validate paths before performing destructive operations.
+
+### 5. Notebook chaining has limitations
+
+`dbutils.notebook.run()` is useful for notebook orchestration, but extensive notebook chaining can become difficult to maintain.
+
+For complex production pipelines, Databricks Jobs with task dependencies are often a better solution.
+
+### 6. DBUtils is not a replacement for Spark
+
+DBUtils can help you locate files and control notebook execution, but Spark is the primary tool for distributed data transformations.
+
+### 7. Secrets require proper permissions
+
+Using `dbutils.secrets.get()` does not eliminate the need for access control, secure logging, and careful handling of credentials.
+
+---
+
+# 14. Common DBUtils Interview Questions and Answers
+
+If you are preparing for a Databricks or data engineering interview, the following questions are worth understanding.
+
+### Q1. What is DBUtils in Databricks?
+
+DBUtils stands for Databricks Utilities. It provides functions for tasks such as file management, secret retrieval, notebook parameterization, notebook execution, and job-task value sharing.
+
+### Q2. What is the difference between `dbutils.fs.ls()` and `spark.read.csv()`?
+
+`dbutils.fs.ls()` lists files and directories.
+
+`spark.read.csv()` reads CSV data into a Spark DataFrame for analysis and transformation.
+
+### Q3. What is the difference between `dbutils.fs.cp()` and `dbutils.fs.mv()`?
+
+`cp()` copies a file or directory to another location.
+
+`mv()` moves a file or directory to another location.
+
+### Q4. Why do we use `dbutils.secrets.get()`?
+
+It retrieves a secret value from a Databricks secret scope so that sensitive information, such as a password or token, does not need to be hardcoded in notebook source code.
+
+### Q5. What are Databricks widgets?
+
+Widgets are notebook input controls that allow users or jobs to supply parameters without modifying the processing code.
+
+### Q6. What is the difference between `dbutils.notebook.run()` and `dbutils.notebook.exit()`?
+
+- `dbutils.notebook.run()` executes another notebook and receives its return value.
+- `dbutils.notebook.exit()` terminates the current notebook and supplies a return value to the caller.
+
+### Q7. Can one notebook pass parameters to another notebook?
+
+Yes. You can pass a dictionary of arguments through `dbutils.notebook.run()` and retrieve the values in the child notebook using widgets.
+
+### Q8. What are `dbutils.jobs.taskValues`?
+
+They allow tasks in a Databricks Job to exchange small values, such as record counts, statuses, or batch identifiers.
+
+### Q9. Can DBUtils process large datasets?
+
+DBUtils is not designed to replace Spark's distributed processing capabilities. Use Spark DataFrames and related APIs for large-scale data processing.
+
+### Q10. Does `dbutils.notebook.exit()` return a DataFrame?
+
+No. The documented notebook exit mechanism returns a string. If you need to pass structured information, you can serialize a small result to JSON and parse it in the calling notebook.
+
+### Q11. What is the difference between widgets and task values?
+
+Widgets provide notebook input parameters.
+
+Task values allow job tasks to publish and retrieve values during a job run.
+
+### Q12. How can you find available DBUtils functions?
+
+Use:
+
+```python
+dbutils.help()
+```
+
+To inspect a particular module:
+
+```python
+dbutils.fs.help()
+```
+
+To inspect a specific command:
+
+```python
+dbutils.fs.help("cp")
+```
+
+You can similarly inspect notebook, secrets, and widget utilities.
+
+---
+
+# 15. Quick Revision Cheat Sheet
+
+Here are the most important DBUtils functions to remember.
+
+| Requirement | Function |
+|---|---|
+| List files | `dbutils.fs.ls()` |
+| Create a directory | `dbutils.fs.mkdirs()` |
+| Copy a file | `dbutils.fs.cp()` |
+| Move a file | `dbutils.fs.mv()` |
+| Delete a file | `dbutils.fs.rm()` |
+| Read the beginning of a file | `dbutils.fs.head()` |
+| Write a string to a file | `dbutils.fs.put()` |
+| List secret scopes | `dbutils.secrets.listScopes()` |
+| List secret metadata | `dbutils.secrets.list()` |
+| Retrieve a secret | `dbutils.secrets.get()` |
+| Create a text widget | `dbutils.widgets.text()` |
+| Create a dropdown | `dbutils.widgets.dropdown()` |
+| Retrieve a widget value | `dbutils.widgets.get()` |
+| Execute another notebook | `dbutils.notebook.run()` |
+| Return a notebook result | `dbutils.notebook.exit()` |
+| Publish a job-task value | `dbutils.jobs.taskValues.set()` |
+| Retrieve a job-task value | `dbutils.jobs.taskValues.get()` |
+| Summarize a dataset | `dbutils.data.summarize()` |
+| Display available help | `dbutils.help()` |
+
+For additional examples and current compatibility details, see the official [Databricks Utilities reference](https://docs.databricks.com/aws/en/dev-tools/databricks-utils).
+
+---
+
+## Final Summary
+
+Think of DBUtils as a **toolbox for working with the Databricks environment**.
+
+The most important modules to learn first are:
+
+1. **`dbutils.fs`** — Manage files and directories.
+2. **`dbutils.secrets`** — Retrieve credentials securely.
+3. **`dbutils.widgets`** — Parameterize notebooks.
+4. **`dbutils.notebook`** — Execute notebooks and return results.
+5. **`dbutils.jobs.taskValues`** — Share values between job tasks.
+
+For practical data engineering work, start by mastering these five modules. Learn how to use them alongside Spark DataFrames, Delta tables, and Databricks Jobs.
+
+Once you understand the distinction between **environment management with DBUtils, data processing with Spark, and orchestration with Databricks Jobs**, you will have a solid foundation for developing reusable Databricks pipelines.
